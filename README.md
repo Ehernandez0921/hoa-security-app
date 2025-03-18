@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gate Security App
 
-## Getting Started
+A web application for managing gate security in an HOA community.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Member registration and management
+- Visitor access control
+- Security guard verification portal
+- Admin dashboard for user management
+- Microsoft Outlook/Office 365 authentication
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prerequisites
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Node.js (v16 or higher)
+- npm (v7 or higher)
 
-## Learn More
+### Installation
 
-To learn more about Next.js, take a look at the following resources:
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd gate-security-app
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Create a Supabase project at [supabase.com](https://supabase.com)
 
-## Deploy on Vercel
+4. Set up environment variables:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Then edit `.env.local` to add your Supabase URL and anon key.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. Set up the database (choose one option):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   **Option 1: Using the Supabase CLI (Recommended for production)**
+   ```bash
+   # Run the setup script
+   npm run setup-db
+   ```
+   
+   **Option 2: Using the SQL Editor in Supabase Dashboard**
+   - Navigate to SQL Editor in your Supabase dashboard
+   - Copy and paste the contents of `supabase/migrations/20230101000000_initial_schema.sql`
+   - Execute the query
+   - Run the seed data from `supabase/seed.sql`
+
+6. Set up Microsoft Authentication (Optional):
+   - Register a new application in the [Azure Portal](https://portal.azure.com)
+   - Go to Azure Active Directory > App registrations > New registration
+   - Enter a name for your application
+   - Select the appropriate account type (single tenant or multitenant)
+   - Set the redirect URI to `http://localhost:3000/api/auth/callback/azure-ad` for development
+   - After registration, go to "Certificates & secrets" and create a new client secret
+   - Add the client ID, client secret, and tenant ID to your `.env.local` file
+
+7. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+8. Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+## Project Structure
+
+- `/src/app` - Next.js app routes and pages
+- `/src/app/components` - React components
+- `/src/app/backend` - Database and API services
+- `/src/lib` - Shared utilities and data access layer
+- `/supabase` - Supabase migrations and configuration
+
+## Database Schema
+
+### Profiles
+- Extends Supabase auth.users
+- Contains user roles and status
+- Supports MEMBER, SECURITY_GUARD, and SYSTEM_ADMIN roles
+
+### Allowed Visitors
+- Managed by members
+- Contains access codes for gate entry
+- Linked to member profiles
+
+## Authentication
+
+The application supports two authentication methods:
+1. **Email/Password** - Using Supabase authentication
+2. **Microsoft Outlook/Office 365** - Using Azure AD OAuth
+
+When a user signs in with Microsoft, their profile is automatically created in the database if it doesn't exist already. By default, new Microsoft users are assigned the MEMBER role.
+
+## Security
+
+- Uses Supabase RLS (Row Level Security) for data protection
+- Role-based access control
+- Secure authentication flow
+- OAuth 2.0 integration with Microsoft identity platform
+
+## Development
+
+- The application uses Supabase for all data operations
+- All data access goes through the data access layer in `src/lib/dataAccess.ts`
+
+## License
+
+[MIT License](LICENSE)

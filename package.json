@@ -3,29 +3,44 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup-db": "bash ./scripts/supabase-setup.sh",
+    "migrate": "node scripts/apply-migrations.js",
+    "migrate:check": "npx supabase db diff --use-migra --linked",
+    "supabase:login": "npx supabase login",
+    "make-admin": "node scripts/make-admin.js",
+    "update-role": "node scripts/update-role.js",
+    "list-profiles": "node scripts/list-profiles.js",
+    "create-admin": "node scripts/create-admin-profile.js",
+    "fix-access": "node scripts/direct-fix.js"
   },
   "dependencies": {
+    "@azure/msal-browser": "^4.7.0",
+    "@supabase/auth-helpers-nextjs": "^0.9.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "@types/uuid": "^10.0.0",
     "lodash": "^4.17.21",
-    "next": "15.2.2",
+    "next": "14.0.0",
     "next-auth": "^4.24.11",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "replicate": "^1.0.1"
+    "react": "^18",
+    "react-dom": "^18",
+    "typescript": "^5",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/lodash": "^4.17.16",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.2.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10",
+    "dotenv": "^16.4.7",
+    "eslint": "^8",
+    "eslint-config-next": "14.0.0",
+    "postcss": "^8",
+    "supabase": "^1.110.1",
+    "tailwindcss": "^3"
   }
 }
