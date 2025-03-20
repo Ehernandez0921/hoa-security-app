@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { hasRole } from '@/lib/session'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { User } from '@/app/models/admin/User'
 
 export default function AdminUsersPage() {
@@ -14,6 +14,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [emailConfirmLoading, setEmailConfirmLoading] = useState<Record<string, boolean>>({})
 
   // Security: Redirect non-admin users away from this page
   useEffect(() => {
@@ -100,6 +101,33 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function confirmUserEmail(userId: string) {
+    try {
+      if (!supabaseAdmin) {
+        throw new Error('Admin client not available - cannot confirm email')
+      }
+
+      setEmailConfirmLoading(prev => ({ ...prev, [userId]: true }))
+      setSuccessMessage('')
+      setError('')
+      
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { email_confirm: true }
+      )
+
+      if (error) throw error
+      
+      setSuccessMessage(`User email has been confirmed manually`)
+      
+    } catch (err: any) {
+      console.error('Error confirming user email:', err)
+      setError('Failed to confirm user email: ' + (err.message || 'Unknown error'))
+    } finally {
+      setEmailConfirmLoading(prev => ({ ...prev, [userId]: false }))
+    }
+  }
+
   // Show loading state
   if (status === 'loading' || (status === 'authenticated' && loading)) {
     return (
@@ -153,7 +181,7 @@ export default function AdminUsersPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {users.map((user) => (
-                <tr key={user.id}>
+                <tr key={user.id} className={user.status === 'PENDING' ? 'bg-yellow-50' : ''}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{user.name}</div>
                   </td>
@@ -184,12 +212,21 @@ export default function AdminUsersPage() {
                       <option value="REJECTED">REJECTED</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="text-xs text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className="text-xs text-gray-500 mb-2">
                       Created: {new Date(user.created_at).toLocaleDateString()}
                       <br />
                       Updated: {new Date(user.updated_at).toLocaleDateString()}
                     </div>
+                    {user.status === 'PENDING' && (
+                      <button
+                        onClick={() => confirmUserEmail(user.id)}
+                        disabled={emailConfirmLoading[user.id]}
+                        className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                      >
+                        {emailConfirmLoading[user.id] ? 'Working...' : 'Confirm Email'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

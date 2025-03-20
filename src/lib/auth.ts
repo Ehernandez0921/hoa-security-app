@@ -37,24 +37,37 @@ export const authOptions: NextAuthOptions = {
         
         try {
           // Use our data access layer for authentication
-          const user = await authenticateUser(
+          const authResult = await authenticateUser(
             credentials.email,
             credentials.password
           );
           
-          if (user) {
+          if (authResult?.success && authResult.user) {
             return {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              role: user.role
+              id: authResult.user.id,
+              name: authResult.user.name,
+              email: authResult.user.email,
+              role: authResult.user.role
             };
+          }
+          
+          // Handle specific error types
+          if (authResult?.error === 'account_pending') {
+            throw new Error('Your account is pending approval by an administrator');
+          }
+          
+          if (authResult?.error === 'account_rejected') {
+            throw new Error('Your registration has been rejected');
+          }
+          
+          if (authResult?.error === 'email_not_confirmed') {
+            throw new Error('Please check your email and confirm your account before logging in');
           }
           
           return null;
         } catch (error) {
           console.error("Authentication error:", error);
-          return null;
+          throw error; // Re-throw to allow NextAuth to handle the error
         }
       }
     })
@@ -121,8 +134,14 @@ export const authOptions: NextAuthOptions = {
           session.user.role = 'MEMBER';
         }
       } else if (session.user) {
-        // For non-Microsoft users, get the role from the user object
-        session.user.role = user.role as Role;
+        // For non-Microsoft users, get the role from the token
+        if (token.role) {
+          session.user.role = token.role as Role;
+        } else {
+          // Fallback to default role if token doesn't have role
+          console.warn('No role found in token, using default MEMBER role');
+          session.user.role = 'MEMBER';
+        }
         
         // Ensure ID is set for credentials users too
         if (token.id) {
@@ -147,11 +166,17 @@ export const authOptions: NextAuthOptions = {
       
       // Add user data to the token when signing in
       if (user) {
-        // Non-null assertion is fine here as these should always be present
-        token.id = user.id!;
-        token.email = user.email!;
-        token.name = user.name!;
-        token.role = user.role as Role;
+        console.log('JWT callback user data:', {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        });
+        
+        // Add user data to token
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.role = user.role;
       }
       
       return token;

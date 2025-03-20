@@ -54,7 +54,7 @@ export default function Register() {
         
         if (result.success) {
           // Registration successful, redirect to login
-          router.push('/login?registered=true')
+          router.push('/routes/login?registered=true')
         } else {
           // Registration failed, show error
           // The error from Supabase auth has a message property

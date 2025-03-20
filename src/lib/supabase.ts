@@ -49,10 +49,18 @@ export async function createUser(email: string, password: string, userData: {
   name: string;
   address: string;
 }) {
+  console.log(`Creating user with email: ${email}`);
+  
   // 1. Create the user in Supabase Auth
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/routes/login?registered=true`,
+      data: {
+        name: userData.name,
+      }
+    }
   });
   
   if (authError || !authData.user) {
@@ -67,6 +75,7 @@ export async function createUser(email: string, password: string, userData: {
       {
         id: authData.user.id,
         name: userData.name,
+        email: email,
         role: 'MEMBER', // Default role for new users
         address: userData.address,
         status: 'PENDING', // New users start with PENDING status
@@ -76,6 +85,31 @@ export async function createUser(email: string, password: string, userData: {
   if (profileError) {
     console.error('Error creating profile:', profileError);
     return { success: false, error: profileError };
+  }
+  
+  // 3. If we have admin client access, we can automatically confirm the email
+  if (supabaseAdmin) {
+    try {
+      console.log(`Attempting to automatically confirm email for user: ${authData.user.id}`);
+      
+      // Use service role to update the user's confirmation status
+      const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(
+        authData.user.id,
+        { email_confirm: true }
+      );
+      
+      if (confirmError) {
+        console.error('Error confirming email automatically:', confirmError);
+        // This is non-fatal - the user will still need to confirm their email
+      } else {
+        console.log('Email automatically confirmed for user');
+      }
+    } catch (error) {
+      console.error('Unexpected error during automatic email confirmation:', error);
+      // This is non-fatal - registration still successful
+    }
+  } else {
+    console.log('Admin client not available, user will need to confirm email via link');
   }
   
   return { 
@@ -208,35 +242,90 @@ export async function getAddressDetails(address: string) {
 
 // Function to authenticate a user
 export async function authenticateUser(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+  console.log(`Authenticating user: ${email}`);
   
-  if (error) {
-    console.error('Error signing in:', error);
-    return null;
-  }
-  
-  // Get the user's profile with role information
-  if (data.user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
     
-    if (profile) {
-      return {
-        id: data.user.id,
-        name: profile.name,
-        email: data.user.email,
-        role: profile.role
-      };
+    if (error) {
+      console.error('Error signing in:', error);
+      
+      // Check for Supabase's email not confirmed error
+      if (error.message.includes('Email not confirmed') || error.code === 'email_not_confirmed') {
+        console.log("Email not confirmed error detected");
+        return { 
+          success: false, 
+          error: 'email_not_confirmed',
+          message: 'Please check your email and confirm your account before logging in.' 
+        };
+      }
+      
+      // For other authentication errors
+      return { success: false, error: 'invalid_credentials' };
     }
+    
+    // Get the user's profile with role information
+    if (data.user) {
+      console.log(`User authenticated, fetching profile for ID: ${data.user.id}`);
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profile) {
+        console.log(`Profile found with status: ${profile.status}`);
+        
+        // Check if the account is still pending approval
+        if (profile.status === 'PENDING') {
+          console.log("Account is pending approval");
+          return { 
+            success: false, 
+            error: 'account_pending',
+            message: 'Your account is pending administrator approval.' 
+          };
+        }
+        
+        // Check if the account has been rejected
+        if (profile.status === 'REJECTED') {
+          console.log("Account is rejected");
+          return { 
+            success: false, 
+            error: 'account_rejected',
+            message: 'Your registration has been rejected.' 
+          };
+        }
+        
+        // Account is approved, return user info
+        console.log("Authentication successful, account is approved");
+        return {
+          success: true,
+          user: {
+            id: data.user.id,
+            name: profile.name,
+            email: data.user.email,
+            role: profile.role
+          }
+        };
+      } else {
+        console.log("No profile found for user");
+      }
+    }
+    
+    console.log("Authentication failed - invalid credentials");
+    return { success: false, error: 'invalid_credentials' };
+  } catch (error) {
+    console.error("Unexpected error during authentication:", error);
+    return { 
+      success: false, 
+      error: 'authentication_error',
+      message: 'An unexpected error occurred during authentication.' 
+    };
   }
-  
-  return null;
 }
 
 // Enhanced function to search for addresses with detailed information

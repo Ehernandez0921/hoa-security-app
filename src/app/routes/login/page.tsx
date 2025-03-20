@@ -1,14 +1,16 @@
 'use client'
 
 import { signIn, useSession } from 'next-auth/react'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, ReactNode } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { LoginFormData } from '@/app/models/auth/Login'
 
 export default function Login() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isRegistered = searchParams.get('registered') === 'true'
   const { data: session, status } = useSession()
-  const [error, setError] = useState('')
+  const [error, setError] = useState<ReactNode>('')
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: ''
@@ -34,20 +36,51 @@ export default function Login() {
   if (status === 'unauthenticated') {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault()
+      setError('') // Clear previous errors
+      
       try {
+        console.log(`Attempting to sign in with email: ${formData.email}`)
         const result = await signIn('credentials', {
           email: formData.email,
           password: formData.password,
           redirect: false,
         })
 
+        console.log("Sign in result:", result)
+        
         if (result?.error) {
-          setError('Invalid credentials')
+          console.log(`Login error: ${result.error}`)
+          
+          // Handle specific error messages
+          if (result.error.includes('confirm your account')) {
+            setError(
+              <div>
+                <p>Please check your email and confirm your account before logging in.</p>
+                <p className="mt-2 text-sm">
+                  Check your email inbox for a verification link from Supabase.
+                </p>
+              </div>
+            )
+          } else if (result.error.includes('pending approval')) {
+            setError(
+              <div>
+                <p>Your account is pending approval by an administrator.</p>
+                <p className="mt-2 text-sm">
+                  You'll be able to login after an administrator approves your account.
+                </p>
+              </div>
+            )
+          } else if (result.error.includes('rejected')) {
+            setError('Your registration has been rejected')
+          } else {
+            setError('Invalid credentials')
+          }
         } else {
           router.push('/') // Redirect to home page after successful login
           router.refresh()
         }
       } catch (error) {
+        console.error('Unexpected error during login:', error)
         setError('An error occurred during login')
       }
     }
@@ -69,6 +102,17 @@ export default function Login() {
     return (
       <div className="max-w-md mx-auto mt-8">
         <h1 className="text-2xl font-bold mb-4">Login</h1>
+        
+        {isRegistered && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            <p>Registration successful! Your account requires two steps:</p>
+            <ol className="list-decimal ml-5 mt-2">
+              <li>Check your email and click the verification link</li>
+              <li>Wait for administrator approval</li>
+            </ol>
+          </div>
+        )}
+        
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -125,6 +169,12 @@ export default function Login() {
           >
             Login with Email
           </button>
+          
+          <div className="mt-4 text-center">
+            <a href="/routes/register" className="text-blue-500 hover:underline">
+              Don't have an account? Register here
+            </a>
+          </div>
         </form>
       </div>
     )
