@@ -191,9 +191,13 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    await deleteVisitor(session, visitorId);
+    const result = await deleteVisitor(session, visitorId);
     
-    return NextResponse.json({ success: true });
+    // Return information about how the visitor was handled
+    return NextResponse.json({
+      success: true,
+      softDeleted: result.softDeleted || false
+    });
   } catch (error) {
     console.error('Error in DELETE /api/member/visitors:', error);
     return NextResponse.json(

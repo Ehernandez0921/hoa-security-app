@@ -34,6 +34,15 @@ export default function VisitorList({
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
+  // Custom bulk action confirmation dialog state
+  const [showBulkConfirmation, setShowBulkConfirmation] = useState(false);
+  const [pendingBulkAction, setPendingBulkAction] = useState<string | null>(null);
+  
+  // Custom revoke confirmation dialog state
+  const [showRevokeConfirmation, setShowRevokeConfirmation] = useState(false);
+  const [visitorToRevoke, setVisitorToRevoke] = useState<string | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
+  
   // Format date for display
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -87,29 +96,32 @@ export default function VisitorList({
   };
   
   // Handle bulk actions
-  const handleBulkAction = async (action: 'extend' | 'revoke' | 'delete') => {
+  const handleBulkAction = async (action: string) => {
     if (selectedVisitors.length === 0) return;
+    
+    // For extend action, just open the dialog
+    if (action === 'extend') {
+      setIsExtendDialogOpen(true);
+      return;
+    }
+    
+    // For destructive actions (delete/revoke), show confirmation dialog
+    if (action === 'delete' || action === 'revoke') {
+      setPendingBulkAction(action);
+      setShowBulkConfirmation(true);
+      return;
+    }
+  };
+  
+  // Confirm and execute bulk action
+  const confirmBulkAction = async () => {
+    if (!pendingBulkAction) return;
     
     setIsLoading(true);
     
     try {
-      if (action === 'extend') {
-        setIsExtendDialogOpen(true);
-        return;
-      }
-      
-      // Confirm before performing destructive actions
-      if (action === 'delete' || action === 'revoke') {
-        const actionText = action === 'delete' ? 'delete' : 'revoke access for';
-        const confirmMessage = `Are you sure you want to ${actionText} ${selectedVisitors.length} visitor${selectedVisitors.length !== 1 ? 's' : ''}?`;
-        
-        if (!window.confirm(confirmMessage)) {
-          return;
-        }
-      }
-      
       await onBulkAction({
-        action,
+        action: pendingBulkAction as 'delete' | 'revoke' | 'extend',
         ids: selectedVisitors
       });
       
@@ -117,7 +129,15 @@ export default function VisitorList({
       setSelectedVisitors([]);
     } finally {
       setIsLoading(false);
+      setShowBulkConfirmation(false);
+      setPendingBulkAction(null);
     }
+  };
+  
+  // Cancel bulk action
+  const cancelBulkAction = () => {
+    setShowBulkConfirmation(false);
+    setPendingBulkAction(null);
   };
   
   // Handle extending expiration date
@@ -139,6 +159,35 @@ export default function VisitorList({
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Handle revoking a visitor's access
+  const handleRevokeAccess = (visitorId: string) => {
+    setVisitorToRevoke(visitorId);
+    setShowRevokeConfirmation(true);
+  };
+  
+  // Confirm revoke action
+  const confirmRevoke = async () => {
+    if (!visitorToRevoke || !onInactivate) return;
+    
+    setIsRevoking(true);
+    
+    try {
+      await onInactivate(visitorToRevoke);
+    } catch (err) {
+      console.error('Error revoking visitor access:', err);
+    } finally {
+      setIsRevoking(false);
+      setShowRevokeConfirmation(false);
+      setVisitorToRevoke(null);
+    }
+  };
+  
+  // Cancel revoke action
+  const cancelRevoke = () => {
+    setShowRevokeConfirmation(false);
+    setVisitorToRevoke(null);
   };
   
   // Render visitor name or code
@@ -178,11 +227,7 @@ export default function VisitorList({
       </button>
       {onInactivate && !isExpired(visitor) && (
         <button
-          onClick={() => {
-            if (window.confirm(`Are you sure you want to revoke access for this visitor?`)) {
-              onInactivate(visitor.id);
-            }
-          }}
+          onClick={() => handleRevokeAccess(visitor.id)}
           className="w-full px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm font-medium"
         >
           Revoke
@@ -412,6 +457,91 @@ export default function VisitorList({
         </div>
       ) : (
         renderNoVisitorsMessage()
+      )}
+      
+      {/* Bulk Action Confirmation Dialog */}
+      {showBulkConfirmation && (
+        <div className="fixed inset-0 z-50 overflow-auto bg-gray-500 bg-opacity-75 flex items-center justify-center">
+          <div className="bg-white rounded-lg overflow-hidden shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-medium mb-4">Confirm Action</h3>
+              <p className="mb-6 text-gray-600">
+                Are you sure you want to {pendingBulkAction === 'delete' ? 'delete' : 'revoke access for'} {selectedVisitors.length} visitor{selectedVisitors.length !== 1 ? 's' : ''}?
+                {pendingBulkAction === 'delete' && " If any visitors have check-in records, they will be deactivated instead."}
+              </p>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={cancelBulkAction}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  disabled={isLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmBulkAction}
+                  className={`px-4 py-2 text-white rounded-md hover:bg-opacity-90 disabled:opacity-50 ${
+                    pendingBulkAction === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </span>
+                  ) : pendingBulkAction === 'delete' ? 'Delete' : 'Revoke'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Revoke Confirmation Dialog */}
+      {showRevokeConfirmation && (
+        <div className="fixed inset-0 z-50 overflow-auto bg-gray-500 bg-opacity-75 flex items-center justify-center">
+          <div className="bg-white rounded-lg overflow-hidden shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-medium mb-4">Confirm Revoke Access</h3>
+              <p className="mb-6 text-gray-600">
+                Are you sure you want to revoke access for this visitor? They will no longer be able to enter the premises.
+              </p>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={cancelRevoke}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  disabled={isRevoking}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmRevoke}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
+                  disabled={isRevoking}
+                >
+                  {isRevoking ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Revoking...
+                    </span>
+                  ) : 'Revoke Access'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       
       {/* Date extension dialog */}

@@ -195,8 +195,10 @@ export async function updateVisitor(session: Session, visitorData: VisitorUpdate
 
 /**
  * Delete a visitor
+ * If the visitor has check-in records, it will be deactivated instead
+ * @returns An object with success status and information about how the visitor was handled
  */
-export async function deleteVisitor(session: Session, visitorId: string): Promise<boolean> {
+export async function deleteVisitor(session: Session, visitorId: string): Promise<{ success: boolean; softDeleted?: boolean }> {
   if (!session?.user?.id) {
     console.error('No user ID in session for deleteVisitor');
     throw new Error('Authentication required');
@@ -215,6 +217,38 @@ export async function deleteVisitor(session: Session, visitorId: string): Promis
     throw new Error('Visitor not found or you do not have permission to delete it');
   }
   
+  // Check if visitor has any check-in records before deleting
+  const { count, error: countError } = await getSupabaseClient()
+    .from('visitor_check_ins')
+    .select('*', { count: 'exact', head: true })
+    .eq('visitor_id', visitorId);
+  
+  if (countError) {
+    console.error('Error checking visitor check-ins:', countError);
+    throw new Error('Failed to check visitor history');
+  }
+  
+  // If visitor has check-in records, soft delete (deactivate) instead
+  if (count && count > 0) {
+    console.log(`Visitor ${visitorId} has ${count} check-in records - soft deleting instead`);
+    
+    const { error: softDeleteError } = await getSupabaseClient()
+      .from('allowed_visitors')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', visitorId);
+    
+    if (softDeleteError) {
+      console.error('Error soft deleting visitor:', softDeleteError);
+      throw new Error('Failed to deactivate visitor');
+    }
+    
+    return { success: true, softDeleted: true };
+  }
+  
+  // Proceed with hard delete if no check-in records
   const { error } = await getSupabaseClient()
     .from('allowed_visitors')
     .delete()
@@ -225,7 +259,7 @@ export async function deleteVisitor(session: Session, visitorId: string): Promis
     throw new Error('Failed to delete visitor');
   }
   
-  return true;
+  return { success: true, softDeleted: false };
 }
 
 /**
@@ -288,10 +322,42 @@ export async function bulkVisitorAction(session: Session, bulkAction: VisitorBul
       break;
       
     case 'delete':
-      ({ error } = await getSupabaseClient()
-        .from('allowed_visitors')
-        .delete()
-        .in('id', bulkAction.ids));
+      // First check if any of the visitors have check-in records
+      const { data: checkInsData, error: checkInsError } = await getSupabaseClient()
+        .from('visitor_check_ins')
+        .select('visitor_id')
+        .in('visitor_id', bulkAction.ids);
+      
+      if (checkInsError) {
+        console.error('Error checking for visitor check-in records:', checkInsError);
+        throw new Error('Failed to verify visitor check-in history');
+      }
+      
+      // Get list of visitor IDs that have check-in records
+      const visitorsWithCheckIns = checkInsData.map(record => record.visitor_id);
+      const uniqueVisitorsWithCheckIns = [...new Set(visitorsWithCheckIns)];
+      
+      // If all visitors have check-in records, we can't delete any
+      if (uniqueVisitorsWithCheckIns.length === bulkAction.ids.length) {
+        throw new Error('Cannot delete visitors with check-in history. Please use the revoke action instead.');
+      }
+      
+      // Filter out visitors with check-in records
+      const deletableVisitorIds = bulkAction.ids.filter(id => !uniqueVisitorsWithCheckIns.includes(id));
+      
+      // Only try to delete visitors without check-in records
+      if (deletableVisitorIds.length > 0) {
+        ({ error } = await getSupabaseClient()
+          .from('allowed_visitors')
+          .delete()
+          .in('id', deletableVisitorIds));
+      }
+      
+      // If some visitors have check-in records but others were deleted successfully
+      if (uniqueVisitorsWithCheckIns.length > 0 && deletableVisitorIds.length > 0) {
+        console.log(`${deletableVisitorIds.length} visitors deleted, ${uniqueVisitorsWithCheckIns.length} skipped due to check-in history`);
+        throw new Error(`${deletableVisitorIds.length} visitors were deleted, but ${uniqueVisitorsWithCheckIns.length} could not be deleted because they have check-in history. Consider using the revoke action for these visitors.`);
+      }
       break;
       
     default:

@@ -27,9 +27,16 @@ export async function POST(request: NextRequest) {
     const bulkAction: VisitorBulkAction = await request.json();
     
     // Validate bulk action
-    if (!bulkAction.action || !bulkAction.ids || !Array.isArray(bulkAction.ids) || bulkAction.ids.length === 0) {
+    if (!bulkAction.action) {
       return NextResponse.json(
-        { error: 'Invalid bulk action request. Action and visitor IDs are required' },
+        { error: 'Action is required' },
+        { status: 400 }
+      );
+    }
+    
+    if (!bulkAction.ids || !Array.isArray(bulkAction.ids) || bulkAction.ids.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one visitor ID is required' },
         { status: 400 }
       );
     }
@@ -51,9 +58,48 @@ export async function POST(request: NextRequest) {
     }
     
     // Apply bulk action
-    await bulkVisitorAction(session, bulkAction);
-    
-    return NextResponse.json({ success: true });
+    try {
+      const result = await bulkVisitorAction(session, bulkAction);
+      
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      console.error('Error performing bulk action:', error);
+      
+      // Handle special error cases
+      if (error instanceof Error) {
+        const message = error.message;
+        
+        // Partial success case - some visitors deleted, others couldn't be
+        if (message.includes('visitors were deleted, but') && message.includes('could not be deleted')) {
+          return NextResponse.json(
+            { 
+              error: message, 
+              code: 'PARTIAL_SUCCESS',
+              action: bulkAction.action 
+            },
+            { status: 207 } // 207 Multi-Status
+          );
+        }
+        
+        // All visitors have check-in records
+        if (message.includes('Cannot delete visitors with check-in history')) {
+          return NextResponse.json(
+            { 
+              error: message, 
+              code: 'VISITORS_HAVE_CHECK_INS',
+              action: bulkAction.action
+            },
+            { status: 409 } // 409 Conflict
+          );
+        }
+      }
+      
+      // Generic error
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Error in POST /api/member/visitors/bulk:', error);
     return NextResponse.json(
