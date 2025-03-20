@@ -36,7 +36,7 @@ export default function Home() {
       {status === 'unauthenticated' && (
         <div className="flex space-x-4">
           <a 
-            href="/login" 
+            href="/routes/login" 
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
           >
             Login

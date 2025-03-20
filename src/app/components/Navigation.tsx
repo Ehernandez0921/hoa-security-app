@@ -15,7 +15,7 @@ export default function Navigation() {
 
   const handleSignOut = async () => {
     await signOut({ redirect: false });
-    router.push('/login');
+    router.push('/routes/login');
   };
 
   return (
@@ -96,8 +96,8 @@ export default function Navigation() {
           ) : status === 'unauthenticated' ? (
             <>
               <Link
-                href="/login"
-                className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/login')}`}
+                href="/routes/login"
+                className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/login')}`}
               >
                 Login
               </Link>
