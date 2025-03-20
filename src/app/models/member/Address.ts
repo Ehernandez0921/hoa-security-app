@@ -6,6 +6,7 @@ export interface MemberAddress {
   owner_name: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   is_primary: boolean;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
   verification_status?: 'VERIFIED' | 'UNVERIFIED' | 'INVALID' | 'NEEDS_REVIEW';

@@ -159,11 +159,19 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    // Check if we should include inactive addresses
+    const includeInactive = searchParams.get('include_inactive') === 'true';
+    
     // Build query
     let query = getSupabaseClient()
       .from('member_addresses')
       .select('*')
       .eq('member_id', session.user.id);
+    
+    // Filter by is_active unless explicitly including inactive addresses
+    if (!includeInactive) {
+      query = query.eq('is_active', true);
+    }
     
     // Apply filters
     if (filters.status && filters.status !== 'ALL') {
@@ -291,7 +299,8 @@ export async function POST(request: NextRequest) {
           owner_name: addressData.owner_name,
           is_primary: isPrimary,
           // New addresses always start as PENDING and require admin approval
-          status: 'PENDING' 
+          status: 'PENDING',
+          is_active: true // Ensure new addresses are active by default
         })
         .select()
         .single();
@@ -470,11 +479,26 @@ export async function DELETE(request: NextRequest) {
       throw new Error(`Error checking visitors: ${visitorCountError.message}`);
     }
     
+    // If address has visitors, perform soft deletion by setting is_active to false
     if (count && count > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete address with associated visitors. Please delete or reassign visitors first.' },
-        { status: 400 }
-      );
+      const { error: softDeleteError } = await getSupabaseClient()
+        .from('member_addresses')
+        .update({ 
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', addressId)
+        .eq('member_id', session.user.id);
+        
+      if (softDeleteError) {
+        throw new Error(`Error soft-deleting address: ${softDeleteError.message}`);
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        softDeleted: true,
+        message: "Address has been deactivated because it has associated visitors."
+      });
     }
     
     // Don't allow deleting the primary address if it's the only address
@@ -482,7 +506,8 @@ export async function DELETE(request: NextRequest) {
       const { count: totalAddresses, error: countError } = await getSupabaseClient()
         .from('member_addresses')
         .select('*', { count: 'exact', head: true })
-        .eq('member_id', session.user.id);
+        .eq('member_id', session.user.id)
+        .eq('is_active', true); // Only count active addresses
       
       if (countError) {
         throw new Error(`Error checking address count: ${countError.message}`);
@@ -496,7 +521,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
     
-    // Delete the address
+    // Hard delete the address if it has no visitors
     const { error } = await getSupabaseClient()
       .from('member_addresses')
       .delete()
@@ -514,6 +539,7 @@ export async function DELETE(request: NextRequest) {
         .from('member_addresses')
         .select('*')
         .eq('member_id', session.user.id)
+        .eq('is_active', true) // Only consider active addresses
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -526,7 +552,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, softDeleted: false });
   } catch (error) {
     console.error('Error in DELETE /api/member/addresses:', error);
     return NextResponse.json(

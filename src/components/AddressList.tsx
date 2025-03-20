@@ -189,11 +189,7 @@ export default function AddressList({
                   </button>
                   
                   <button
-                    onClick={async () => {
-                      if (window.confirm('Are you sure you want to delete this address?')) {
-                        await onDelete(address.id);
-                      }
-                    }}
+                    onClick={() => onDelete(address.id)}
                     disabled={address.is_primary}
                     className={`px-3 py-1 rounded text-sm ${
                       address.is_primary
