@@ -4,7 +4,23 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// This client is for general use, including client-side code
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Create an admin client with service role key (only for server-side use)
+// Note: This will only be created in server-side contexts where the service role key is available
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+// Only create the admin client when we have a service key
+// This prevents errors in client-side code
+export const supabaseAdmin = supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
 
 // Type definitions for profiles
 export type Profile = {

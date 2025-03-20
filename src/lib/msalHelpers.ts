@@ -85,9 +85,9 @@ async function tryFallbackMethods(user: {
       p_id: supabaseUserId,
       p_name: user.name || 'Microsoft User',
       p_email: user.email,
-      p_role: 'SYSTEM_ADMIN',
+      p_role: 'MEMBER',
       p_address: 'No address provided',
-      p_status: 'APPROVED'
+      p_status: 'PENDING'
     });
 
   if (!rpcError && rpcData) {
@@ -104,9 +104,9 @@ async function tryFallbackMethods(user: {
         id: supabaseUserId,
         name: user.name || 'Microsoft User',
         email: user.email,
-        role: 'SYSTEM_ADMIN',
+        role: 'MEMBER',
         address: 'No address provided',
-        status: 'APPROVED',
+        status: 'PENDING',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -152,5 +152,5 @@ export async function getMicrosoftUserRole(user: {
   }
   
   // Default role if something went wrong
-  return 'SYSTEM_ADMIN'; // Give admin role by default to ensure access
+  return 'MEMBER'; // Give member role by default
 } 

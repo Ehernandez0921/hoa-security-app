@@ -29,12 +29,16 @@ export default function Navigation() {
                 </>
               )}
               {session.user.role === 'MEMBER' && (
-                <Link href="/member/visitors">Manage Visitors</Link>
+                <>
+                  <Link href="/routes/member/dashboard">Dashboard</Link>
+                  <Link href="/routes/member/addresses">Addresses</Link>
+                  <Link href="/routes/member/visitors">Manage Visitors</Link>
+                </>
               )}
               {session.user.role === 'SECURITY_GUARD' && (
                 <Link href="/routes/guard/lookup">Address Lookup</Link>
               )}
-              <Link href="/profile">Profile</Link>
+              <Link href="/routes/profile">Profile</Link>
               <Link href="/api/auth/signout">Logout</Link>
             </>
           )}

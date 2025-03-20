@@ -39,9 +39,9 @@ BEGIN
       p_id,
       p_name,
       p_email,
-      'SYSTEM_ADMIN',
+      'MEMBER',
       'No address provided',
-      'APPROVED',
+      'PENDING',
       NOW(),
       NOW()
     ) RETURNING id INTO v_profile_id;

@@ -53,6 +53,15 @@ export default function Navigation() {
                 </>
               )}
               
+              {session.user?.role === 'MEMBER' && (
+                <Link
+                  href="/routes/member/dashboard"
+                  className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/member/dashboard')}`}
+                >
+                  Member Dashboard
+                </Link>
+              )}
+              
               {session.user?.role === 'SECURITY_GUARD' && (
                 <Link
                   href="/routes/guard/lookup"

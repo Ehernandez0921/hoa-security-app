@@ -82,6 +82,16 @@ export const authOptions: NextAuthOptions = {
     async session({ session, user, token }) {
       console.log('Session callback:', { sessionUser: session.user, tokenSub: token.sub });
       
+      // Make sure the user object exists on the session
+      if (!session.user) {
+        session.user = {};
+      }
+      
+      // Always include the ID from the token
+      if (token.sub) {
+        session.user.id = token.sub;
+      }
+      
       // Handle Microsoft user
       if (session.user && token.provider === 'microsoft') {
         try {
@@ -97,22 +107,35 @@ export const authOptions: NextAuthOptions = {
           
           if (userProfile) {
             console.log('Profile loaded for Microsoft user:', userProfile.email);
-            // Add role to the session
+            // Add role and ID to the session
             session.user.role = userProfile.role;
+            session.user.id = userProfile.id; // Use the Supabase ID
           } else {
             console.log('Using default role for Microsoft user');
             // Default role if something went wrong
-            session.user.role = 'SYSTEM_ADMIN';
+            session.user.role = 'MEMBER';
           }
         } catch (error) {
           console.error('Error in session callback for Microsoft user:', error);
           // Default role if something went wrong
-          session.user.role = 'SYSTEM_ADMIN';
+          session.user.role = 'MEMBER';
         }
       } else if (session.user) {
         // For non-Microsoft users, get the role from the user object
         session.user.role = user.role as Role;
+        
+        // Ensure ID is set for credentials users too
+        if (token.id) {
+          session.user.id = token.id as string;
+        }
       }
+      
+      // Log the final session user to verify it has all required fields
+      console.log('Final session user:', { 
+        id: session.user?.id,
+        email: session.user?.email,
+        role: session.user?.role
+      });
       
       return session;
     },
