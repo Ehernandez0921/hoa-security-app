@@ -10,6 +10,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Create an admin client with service role key (only for server-side use)
 // Note: This will only be created in server-side contexts where the service role key is available
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+console.log('Service key available:', Boolean(supabaseServiceKey), 'First 5 chars:', supabaseServiceKey.substring(0, 5));
 
 // Only create the admin client when we have a service key
 // This prevents errors in client-side code
@@ -21,6 +22,8 @@ export const supabaseAdmin = supabaseServiceKey
       }
     })
   : null;
+
+console.log('supabaseAdmin initialized:', Boolean(supabaseAdmin));
 
 // Type definitions for profiles
 export type Profile = {
@@ -85,29 +88,34 @@ export async function createUser(email: string, password: string, userData: {
     return { success: false, error: profileError };
   }
   
-  // 3. If we have admin client access, we can automatically confirm the email
-  if (supabaseAdmin) {
-    try {
-      console.log(`Attempting to automatically confirm email for user: ${authData.user.id}`);
-      
-      // Use service role to update the user's confirmation status
-      const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(
-        authData.user.id,
-        { email_confirm: true }
-      );
-      
-      if (confirmError) {
-        console.error('Error confirming email automatically:', confirmError);
-        // This is non-fatal - the user will still need to confirm their email
-      } else {
-        console.log('Email automatically confirmed for user');
-      }
-    } catch (error) {
-      console.error('Unexpected error during automatic email confirmation:', error);
-      // This is non-fatal - registration still successful
+  // 3. Try to automatically confirm the email via server API
+  // Note: This is optional - if it fails, user will still be registered
+  // and can confirm via email link
+  try {
+    console.log(`Attempting to automatically confirm email for user: ${authData.user.id}`);
+    
+    // Call our server API endpoint to confirm the email
+    const confirmResponse = await fetch('/api/auth/confirm-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId: authData.user.id }),
+    });
+    
+    const confirmResult = await confirmResponse.json();
+    
+    if (!confirmResponse.ok || !confirmResult.success) {
+      console.log('Note: Automatic email confirmation did not succeed. User will need to confirm via email link.');
+      console.error('Details:', confirmResult.error || 'Unknown error');
+      // Non-fatal - user will confirm via email
+    } else {
+      console.log('Email automatically confirmed for user');
     }
-  } else {
-    console.log('Admin client not available, user will need to confirm email via link');
+  } catch (error) {
+    console.log('Note: Unable to automatically confirm email. User will need to confirm via email link.');
+    console.error('Error during confirmation attempt:', error);
+    // Non-fatal - user will confirm via email
   }
   
   return { 
