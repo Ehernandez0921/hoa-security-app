@@ -6,9 +6,10 @@ import AddressList from '@/components/AddressList';
 import AddressForm from '@/components/AddressForm';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function MemberAddressesPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   
   const [addresses, setAddresses] = useState<MemberAddress[]>([]);
@@ -24,21 +25,65 @@ export default function MemberAddressesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteResult, setDeleteResult] = useState<{ success: boolean; softDeleted?: boolean; message?: string } | null>(null);
   
-  // Check if user is authenticated and has required role
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  
+  // Check if user is authorized (APPROVED status)
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/routes/login');
-    } else if (status === 'authenticated' && session?.user?.role !== 'MEMBER') {
-      router.push('/');
+    async function checkAuthorization() {
+      if (authStatus === 'unauthenticated') {
+        router.push('/routes/login');
+        return;
+      }
+      
+      if (authStatus === 'authenticated' && session?.user?.id) {
+        try {
+          // Check profile status
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('status')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (error) {
+            console.error('Error checking profile status:', error);
+            setIsAuthorized(false);
+          } else if (data && data.status === 'APPROVED') {
+            setIsAuthorized(true);
+          } else {
+            console.log('User not approved, redirecting to dashboard');
+            router.push('/routes/member/dashboard');
+          }
+        } catch (err) {
+          console.error('Unexpected error checking authorization:', err);
+          setIsAuthorized(false);
+        } finally {
+          setAuthLoading(false);
+        }
+      } else if (authStatus !== 'loading') {
+        setAuthLoading(false);
+      }
     }
-  }, [status, session, router]);
+    
+    checkAuthorization();
+  }, [session, authStatus, router]);
+  
+  // Show loading while checking authorization
+  if (authStatus === 'loading' || authLoading) {
+    return <div className="container mx-auto p-4">Loading...</div>;
+  }
+  
+  // Unauthorized users don't see the content
+  if (!isAuthorized) {
+    return null;
+  }
   
   // Load addresses when component mounts
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (authStatus === 'authenticated') {
       loadAddresses();
     }
-  }, [status]);
+  }, [authStatus]);
   
   // Load all addresses for the current member
   const loadAddresses = async () => {
@@ -199,7 +244,7 @@ export default function MemberAddressesPage() {
   };
   
   // Render loading state
-  if (status === 'loading' || (status === 'authenticated' && loading && !error)) {
+  if (authStatus === 'loading' || (authStatus === 'authenticated' && loading && !error)) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-6">My Addresses</h1>

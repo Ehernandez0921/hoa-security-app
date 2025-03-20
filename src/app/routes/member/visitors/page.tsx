@@ -9,9 +9,10 @@ import { MemberAddress } from '@/app/models/member/Address';
 import { generateRandomCode, calculateExpirationDate } from '@/lib/visitorAccessClient';
 import VisitorList from '@/components/VisitorList';
 import VisitorForm from '@/components/VisitorForm';
+import { supabase } from '@/lib/supabase';
 
 export default function VisitorManagementPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   
   const [visitors, setVisitors] = useState<Visitor[]>([]);
@@ -36,14 +37,58 @@ export default function VisitorManagementPage() {
   const [partialSuccessMessage, setPartialSuccessMessage] = useState('');
   const [pendingBulkAction, setPendingBulkAction] = useState<VisitorBulkAction | null>(null);
   
-  // Redirect if not authenticated or not a MEMBER
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  
+  // Check if user is authorized (APPROVED status)
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/routes/login');
-    } else if (status === 'authenticated' && session?.user?.role !== 'MEMBER') {
-      router.push('/');
+    async function checkAuthorization() {
+      if (authStatus === 'unauthenticated') {
+        router.push('/routes/login');
+        return;
+      }
+      
+      if (authStatus === 'authenticated' && session?.user?.id) {
+        try {
+          // Check profile status
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('status')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (error) {
+            console.error('Error checking profile status:', error);
+            setIsAuthorized(false);
+          } else if (data && data.status === 'APPROVED') {
+            setIsAuthorized(true);
+          } else {
+            console.log('User not approved, redirecting to dashboard');
+            router.push('/routes/member/dashboard');
+          }
+        } catch (err) {
+          console.error('Unexpected error checking authorization:', err);
+          setIsAuthorized(false);
+        } finally {
+          setAuthLoading(false);
+        }
+      } else if (authStatus !== 'loading') {
+        setAuthLoading(false);
+      }
     }
-  }, [status, session, router]);
+    
+    checkAuthorization();
+  }, [session, authStatus, router]);
+  
+  // Show loading while checking authorization
+  if (authStatus === 'loading' || authLoading) {
+    return <div className="container mx-auto p-4">Loading...</div>;
+  }
+  
+  // Unauthorized users don't see the content
+  if (!isAuthorized) {
+    return null;
+  }
   
   // Fetch visitors data
   const fetchVisitors = async () => {
@@ -102,11 +147,11 @@ export default function VisitorManagementPage() {
   
   // Load visitors and addresses when component mounts or when filters change
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.role === 'MEMBER') {
+    if (authStatus === 'authenticated' && session?.user?.role === 'MEMBER') {
       fetchVisitors();
       fetchAddresses();
     }
-  }, [status, session, filters]);
+  }, [authStatus, session, filters]);
   
   // Create a new visitor
   const handleCreateVisitor = async (visitorData: VisitorCreateParams | VisitorUpdateParams) => {
@@ -320,7 +365,7 @@ export default function VisitorManagementPage() {
   };
   
   // Show loading state
-  if (status === 'loading' || (status === 'authenticated' && isLoading && visitors.length === 0)) {
+  if (authStatus === 'loading' || (authStatus === 'authenticated' && isLoading && visitors.length === 0)) {
     return (
       <div className="container mx-auto py-8 px-4">
         <h1 className="text-2xl font-bold mb-6">Visitor Management</h1>
@@ -333,7 +378,7 @@ export default function VisitorManagementPage() {
   }
   
   // Show unauthorized state
-  if (status === 'authenticated' && session?.user?.role !== 'MEMBER') {
+  if (authStatus === 'authenticated' && session?.user?.role !== 'MEMBER') {
     return (
       <div className="container mx-auto py-8 px-4">
         <h1 className="text-2xl font-bold mb-6">Visitor Management</h1>
