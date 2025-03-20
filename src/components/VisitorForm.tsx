@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { Visitor, VisitorCreateParams, VisitorUpdateParams, ExpirationOption } from '@/app/models/member/Visitor';
 import { MemberAddress } from '@/app/models/member/Address';
 import ExpirationDatePicker from './ExpirationDatePicker';
@@ -14,6 +14,9 @@ interface VisitorFormProps {
   isSubmitting: boolean;
 }
 
+// Create a combined type that covers both form data possibilities
+type FormDataType = (VisitorCreateParams | VisitorUpdateParams);
+
 export default function VisitorForm({
   visitor,
   addresses,
@@ -21,29 +24,24 @@ export default function VisitorForm({
   onCancel,
   isSubmitting
 }: VisitorFormProps) {
-  // Default to the first approved address if available, otherwise the first address
-  const defaultAddressId = addresses.find(a => a.status === 'APPROVED')?.id || addresses[0]?.id || '';
+  // Track if component is mounted to prevent updates after unmount
+  const isMounted = useRef(true);
   
-  const [formData, setFormData] = useState<VisitorCreateParams | VisitorUpdateParams>({
-    id: visitor?.id || '',
-    address_id: visitor?.address_id || defaultAddressId,
-    first_name: visitor?.first_name || '',
-    last_name: visitor?.last_name || '',
-    access_code: visitor?.access_code || '',
-    generate_code: !visitor?.first_name && !visitor?.last_name,
-    expires_at: visitor?.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    is_active: visitor?.is_active !== undefined ? visitor.is_active : true
-  });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [visitorType, setVisitorType] = useState<'named' | 'code'>(
-    visitor?.first_name || visitor?.last_name ? 'named' : 'code'
-  );
-
-  // Update form data when visitor prop changes
-  useEffect(() => {
+  // Find default address once on initial render
+  const defaultAddressId = useRef(
+    addresses.find(a => a.status === 'APPROVED')?.id || 
+    addresses[0]?.id || 
+    ''
+  ).current;
+  
+  // Determine initial visitor type just once
+  const initialVisitorType = visitor?.first_name || visitor?.last_name ? 'named' : 'code';
+  
+  // Compute initial form state
+  const getInitialFormState = (): FormDataType => {
     if (visitor) {
-      setFormData({
+      // For editing existing visitor
+      return {
         id: visitor.id,
         address_id: visitor.address_id,
         first_name: visitor.first_name || '',
@@ -51,21 +49,60 @@ export default function VisitorForm({
         access_code: visitor.access_code || '',
         expires_at: visitor.expires_at,
         is_active: visitor.is_active
-      });
-      
-      setVisitorType(visitor.first_name || visitor.last_name ? 'named' : 'code');
+      } as VisitorUpdateParams;
     } else {
-      setFormData({
+      // For creating new visitor
+      return {
         address_id: defaultAddressId,
         first_name: '',
         last_name: '',
-        generate_code: visitorType === 'code',
+        generate_code: initialVisitorType === 'code',
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      });
+      } as VisitorCreateParams;
     }
-  }, [visitor, defaultAddressId]);
+  };
+  
+  // State with stable initialization and proper typing
+  const [formData, setFormData] = useState<FormDataType>(getInitialFormState());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [visitorType, setVisitorType] = useState<'named' | 'code'>(initialVisitorType);
+  
+  // Flag to prevent first render updates
+  const isFirstRender = useRef(true);
+  
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+  
+  // Only update when visitor prop changes - with careful dependency management
+  useEffect(() => {
+    // Skip first render because we already initialized in useState
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
+    if (!visitor) return;
+    
+    // Update form data when editing an existing visitor
+    setFormData({
+      id: visitor.id,
+      address_id: visitor.address_id,
+      first_name: visitor.first_name || '',
+      last_name: visitor.last_name || '',
+      access_code: visitor.access_code || '',
+      expires_at: visitor.expires_at,
+      is_active: visitor.is_active
+    });
+    
+    // Update visitor type based on visitor data
+    setVisitorType(visitor.first_name || visitor.last_name ? 'named' : 'code');
+  }, [visitor]); // Only depend on visitor, not any derived state
 
-  // Handle input changes
+  // Handle input changes - pure function with no side effects
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
@@ -85,27 +122,35 @@ export default function VisitorForm({
     }
   };
 
-  // Handle visitor type change
+  // Handle visitor type change with proper type handling
   const handleVisitorTypeChange = (type: 'named' | 'code') => {
+    // First update the type
     setVisitorType(type);
     
-    // Update form data based on visitor type
-    if (type === 'code') {
-      setFormData(prev => ({
-        ...prev,
-        first_name: '',
-        last_name: '',
-        generate_code: true
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        generate_code: false
-      }));
-    }
+    // Then update form data based on new type
+    setFormData(prev => {
+      // Create clean copy with proper type handling
+      const newData = { ...prev };
+      
+      if (type === 'code') {
+        // For code-only visitors
+        newData.first_name = '';
+        newData.last_name = '';
+        
+        // Only modify if we're creating a new visitor (not editing)
+        if (!visitor && 'generate_code' in newData) {
+          (newData as VisitorCreateParams).generate_code = true;
+        }
+      } else if (!visitor && 'generate_code' in newData) {
+        // For named visitors (only when creating new)
+        (newData as VisitorCreateParams).generate_code = false;
+      }
+      
+      return newData;
+    });
   };
 
-  // Handle expiration date change
+  // Pure functions for specific state updates
   const handleExpirationChange = (date: string) => {
     setFormData(prev => ({
       ...prev,
@@ -113,7 +158,6 @@ export default function VisitorForm({
     }));
   };
 
-  // Handle code generation
   const handleCodeGenerated = (code: string) => {
     setFormData(prev => ({
       ...prev,
@@ -121,7 +165,7 @@ export default function VisitorForm({
     }));
   };
 
-  // Form validation
+  // Form validation - pure function with no side effects
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     
@@ -147,38 +191,42 @@ export default function VisitorForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
+  // Form submission handler with proper type handling
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
     
-    // If editing a visitor, ensure we send the correct fields
+    // Create a new object for submission with proper type handling
     const submitData = { ...formData };
     
+    // Safely handle optional fields based on visitor type
     if (visitor) {
-      // If editing a named visitor, don't send generate_code
-      if (visitorType === 'named') {
-        delete (submitData as any).generate_code;
-      } 
-      // If editing a code visitor, don't send first_name and last_name
-      else {
-        delete submitData.first_name;
-        delete submitData.last_name;
+      // We're editing an existing visitor
+      if (visitorType === 'code' && submitData.first_name !== undefined) {
+        // For code-only visitors, we can safely set these to empty strings
+        // instead of deleting, avoiding type errors
+        submitData.first_name = '';
+        submitData.last_name = '';
       }
+    } else if ('generate_code' in submitData) {
+      // We're creating a new visitor - ensure generate_code matches visitor type
+      (submitData as VisitorCreateParams).generate_code = (visitorType === 'code');
     }
     
     await onSubmit(submitData);
   };
 
-  // Get address options
+  // Address options function - pure with no side effects
   const getAddressOptions = () => {
     // Filter to only show approved addresses (or the currently selected address)
     return addresses
       .filter(a => a.status === 'APPROVED' || a.id === formData.address_id)
       .map(a => (
         <option key={a.id} value={a.id}>
-          {a.address} {a.status !== 'APPROVED' ? `(${a.status})` : ''}
+          {a.address}
+          {a.apartment_number ? ` Apt ${a.apartment_number}` : ''}
+          {a.status !== 'APPROVED' ? ` (${a.status})` : ''}
           {a.is_primary ? ' (Primary)' : ''}
         </option>
       ));
@@ -278,7 +326,7 @@ export default function VisitorForm({
               type="text"
               id="first_name"
               name="first_name"
-              value={formData.first_name}
+              value={formData.first_name || ''}
               onChange={handleInputChange}
               className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 ${
                 errors.first_name 
@@ -299,7 +347,7 @@ export default function VisitorForm({
               type="text"
               id="last_name"
               name="last_name"
-              value={formData.last_name}
+              value={formData.last_name || ''}
               onChange={handleInputChange}
               className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 ${
                 errors.last_name 
@@ -337,7 +385,7 @@ export default function VisitorForm({
       </div>
       
       {/* Active status toggle (only for editing) */}
-      {visitor && (
+      {visitor && 'is_active' in formData && (
         <div className="mb-6">
           <div className="flex items-center">
             <input

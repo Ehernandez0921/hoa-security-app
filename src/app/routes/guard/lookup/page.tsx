@@ -1,132 +1,118 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import debounce from 'lodash/debounce'
-import { getAddresses, getAddressDetails } from '@/lib/dataAccess'
-import { VisitorInfo, AddressInfo } from '@/app/models/guard/Address'
+import { useState } from 'react'
+import { AddressInfo } from '@/app/models/guard/Address'
+import AddressSearch from '@/app/components/guard/AddressSearch'
+import VisitorList from '@/app/components/guard/VisitorList'
 
 export default function AddressLookup() {
-  const [searchInput, setSearchInput] = useState('')
-  const [suggestions, setSuggestions] = useState<string[]>([])
   const [selectedAddress, setSelectedAddress] = useState<AddressInfo | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-
-  // Debounced search function
-  const debouncedSearch = debounce(async (searchTerm: string) => {
-    if (searchTerm.length < 2) {
-      setSuggestions([]);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    
+  const [error, setError] = useState<string | null>(null)
+  
+  // Function to fetch address details from API
+  const fetchAddressDetails = async (addressId: string) => {
     try {
-      // Use Supabase data instead of mock data
-      const addresses = await getAddresses(searchTerm);
-      setSuggestions(addresses);
-    } catch (error) {
-      console.error('Error searching for addresses:', error);
-      setSuggestions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, 300);
-
-  useEffect(() => {
-    debouncedSearch(searchInput);
-    
-    // Check if the current input exactly matches an address in suggestions
-    // If so, load the details for that address
-    if (suggestions.includes(searchInput)) {
-      fetchAddressDetails(searchInput);
-    }
-
-    return () => {
-      debouncedSearch.cancel();
-    };
-  }, [searchInput, suggestions]);
-
-  // Function to fetch address details from Supabase
-  const fetchAddressDetails = async (address: string) => {
-    try {
-      setIsLoading(true);
-      const addressInfo = await getAddressDetails(address);
-      if (addressInfo) {
-        setSelectedAddress(addressInfo);
+      setIsLoading(true)
+      setError(null)
+      
+      const response = await fetch(`/api/guard/addresses/details?id=${encodeURIComponent(addressId)}`)
+      const result = await response.json()
+      
+      if (response.ok) {
+        setSelectedAddress(result)
+      } else {
+        setError(result.error || 'Could not load address details. Please try again.')
       }
     } catch (error) {
-      console.error('Error fetching address details:', error);
+      console.error('Error fetching address details:', error)
+      setError('An unexpected error occurred. Please try again.')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
-  const handleSelectAddress = async (address: string) => {
-    setSearchInput(address);
-    setSuggestions([]);
-    await fetchAddressDetails(address);
-  };
+  // Handle address selection from the search component
+  const handleAddressSelect = async (addressId: string, address: string) => {
+    await fetchAddressDetails(addressId)
+  }
+
+  // Handle visitor check-in
+  const handleVisitorCheckedIn = (visitorId: string) => {
+    // Update local state to reflect the check-in
+    if (selectedAddress) {
+      setSelectedAddress({
+        ...selectedAddress,
+        allowedVisitors: selectedAddress.allowedVisitors.map(visitor => 
+          visitor.id === visitorId 
+            ? { ...visitor, last_used: new Date().toISOString() } 
+            : visitor
+        )
+      })
+    }
+  }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Address Lookup</h1>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8 text-gray-800">Address Lookup</h1>
       
-      <div className="relative mb-8">
-        <div className="relative">
-          <input
-            type="text"
-            className="w-full border p-2 rounded pr-10"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Start typing an address..."
-          />
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+      {/* Address Search Component */}
+      <AddressSearch onAddressSelect={handleAddressSelect} />
+      
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center my-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+      
+      {/* Error Message */}
+      {error && !isLoading && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+          <p>{error}</p>
+        </div>
+      )}
+
+      {/* Address Details */}
+      {selectedAddress && !isLoading && (
+        <div className="mt-8">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+              {selectedAddress.address}
+            </h2>
+            {selectedAddress.apartment_number && (
+              <div className="text-lg text-gray-600 mb-2">
+                Apartment: <span className="font-medium">{selectedAddress.apartment_number}</span>
+              </div>
+            )}
+            <div className="text-gray-600">
+              Owner: <span className="font-medium">{selectedAddress.owner_name}</span>
+            </div>
+          </div>
+          
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Visitor Access</h3>
+          
+          {/* Show visitor list if there are visitors, or a message if none */}
+          {selectedAddress.allowedVisitors.length > 0 ? (
+            <VisitorList 
+              visitors={selectedAddress.allowedVisitors} 
+              addressId={selectedAddress.id}
+              onVisitorCheckedIn={handleVisitorCheckedIn}
+            />
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-6 text-center text-gray-500">
+              <p className="text-lg">No active visitors for this address.</p>
             </div>
           )}
         </div>
-        
-        {/* Suggestions dropdown */}
-        {suggestions.length > 0 && !isLoading && (
-          <div className="absolute w-full bg-white border rounded-b mt-1 shadow-lg z-10">
-            {suggestions.map((address, index) => (
-              <div
-                key={index}
-                className="p-2 hover:bg-gray-100 cursor-pointer"
-                onClick={() => handleSelectAddress(address)}
-              >
-                {address}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Address details */}
-      {selectedAddress && (
-        <div className="border rounded p-4 bg-white shadow">
-          <h2 className="text-xl font-semibold mb-4">{selectedAddress.address}</h2>
-          <h3 className="font-medium mb-2">Allowed Visitors:</h3>
-          {selectedAddress.allowedVisitors && selectedAddress.allowedVisitors.length > 0 ? (
-            <ul className="space-y-2">
-              {selectedAddress.allowedVisitors.map((visitor, index) => (
-                <li 
-                  key={index} 
-                  className="flex justify-between items-center border-b pb-2"
-                >
-                  <span className="text-gray-800">{visitor.name}</span>
-                  <span className="font-mono bg-gray-100 px-3 py-1 rounded">
-                    {visitor.accessCode}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500">No visitors allowed for this address.</p>
-          )}
+      )}
+      
+      {/* Initial State - No Address Selected */}
+      {!selectedAddress && !isLoading && !error && (
+        <div className="bg-blue-50 rounded-lg p-8 text-center mt-12">
+          <p className="text-lg text-blue-800">
+            Enter an address above to see allowed visitors.
+          </p>
         </div>
       )}
     </div>

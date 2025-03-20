@@ -60,6 +60,16 @@ This document outlines the requirements for building a web application a [securi
         is_active: boolean (tracks if visitor permission is currently active)
         last_used: timestamptz (tracks when the access was last used)
         
+    visitor_check_ins:
+        id: uuid (primary key)
+        visitor_id: uuid (references allowed_visitors.id)
+        address_id: uuid (references member_addresses.id)
+        checked_in_by: uuid (references profiles.id, the security guard)
+        check_in_time: timestamptz (when the check-in occurred)
+        entry_method: text (NAME_VERIFICATION or ACCESS_CODE)
+        notes: text (optional notes added by security guard)
+        created_at: timestamptz
+        
     member_addresses:
         id: uuid (primary key)
         member_id: uuid (references profiles.id)
@@ -77,6 +87,55 @@ This document outlines the requirements for building a web application a [securi
         supabase_id: uuid (references auth.users.id)
         created_at: timestamptz
         updated_at: timestamptz
+
+## Component State Management Best Practices
+
+This section outlines recommended patterns for managing state in React components to prevent infinite update loops and maximize update depth errors.
+
+#### General Best Practices
+
+1. **State Initialization**
+   - Initialize state in a single location when possible
+   - Use functional initialization for computed initial values
+   - Avoid dependencies between state variables during initialization
+
+2. **Managing Dependencies and Updates**
+   - Use separate effects for unrelated state updates
+   - Include only necessary dependencies in effect dependency arrays
+   - Consider using refs to track changes without triggering re-renders
+   - Use functional updates (`setState(prev => ...)`) to avoid stale closures
+
+3. **TypeScript Safety**
+   - Use proper type assertions for different data shapes
+   - Ensure conditional logic handles nullish values properly
+   - Create specific types for different form states
+
+4. **Avoiding Circular Dependencies**
+   - Break circular relationships between state variables
+   - Use refs to track "first render" scenarios
+   - Consider combining related state into a single object
+
+#### Troubleshooting Guide
+
+When encountering maximum update depth errors:
+
+1. **Identify the Problem**
+   - Look for state updates that trigger effects that update state again
+   - Check for conditional rendering that depends on state updated in effects
+   - Monitor browser console for repeated re-renders
+
+2. **Solutions**
+   - Use refs to track values without triggering re-renders
+   - Add guards against unnecessary updates
+   - Move state initialization outside of render cycle where possible
+   - Consider memoization (useCallback, useMemo) for expensive computations
+
+3. **Testing**
+   - Use React DevTools to profile component renders
+   - Add temporary console logs to track update cycles
+   - Isolate components to test behavior independently
+
+By following these patterns, components with complex state relationships (like VisitorForm and ExpirationDatePicker) can maintain proper functionality without causing infinite render loops.
 
 ## General app architecture:
 - Design should use a modern responsive library
@@ -241,6 +300,22 @@ This document outlines the requirements for building a web application a [securi
   - Each address can be individually approved or rejected
   - Approved addresses are immediately available for visitor management
   - Address approval notifications display to members on their dashboard
+  - Enhanced address validation capabilities:
+    - Interactive map preview showing the geolocation of the address
+    - Ability to verify address existence against OpenStreetMap or similar service
+    - Detailed address components breakdown (street, city, state, zip)
+    - Visual indication of address validation status (valid, invalid, uncertain)
+    - Address standardization suggestions if the format appears non-standard
+    - Verification history tracking for auditing purposes
+    - Batch approval options for multiple addresses from the same location/building
+    - Option to add admin notes about address verification for future reference
+    - Override capability for special cases (new constructions, unusual addresses)
+  - Address verification workflow:
+    1. Admin reviews pending address in detail view
+    2. System shows automatic validation results from OpenStreetMap API
+    3. Admin can manually verify/cross-check address using interactive map
+    4. Admin can approve, reject, or flag address for further review
+    5. Optional verification notes can be added to explain decision
 
 - **Member Data Models**:
   - `models/member/Address.ts` - Address data interfaces:
@@ -284,6 +359,15 @@ This document outlines the requirements for building a web application a [securi
 - [SystemAdmin] should be able to approve or reject address submissions from members
 - [SystemAdmin] has access to the user management interface at /routes/admin/users to modify user roles and statuses
 - [SystemAdmin] has access to the address management interface at /routes/admin/addresses to approve/reject member addresses
+- [SystemAdmin] has enhanced address validation capabilities:
+  - Viewing detailed address information including apartment/unit numbers
+  - Verifying addresses against mapping services and databases
+  - Reviewing address validation status from automatic checks
+  - Adding verification notes for audit purposes
+  - Using interactive maps to visually verify address locations
+  - Applying batch operations for address approvals when appropriate
+  - Setting verification status flags for addresses (verified, uncertain, invalid)
+  - Managing exceptions for special address cases
 
 ## Security Guard Validation:
 - [Security Guard] should be able to look up the [Member] by address and see the list of allowed people for that address.
@@ -300,6 +384,24 @@ This document outlines the requirements for building a web application a [securi
     - Ability to verify access codes entered by visitors
     - Guards can record visitor check-ins with single-click confirmation
     - Apartment/unit numbers are clearly displayed for precise visitor verification
+- **Visitor Check-in Logging**:
+    - All visitor check-ins must be comprehensively logged in a dedicated `visitor_check_ins` table
+    - Each check-in log should record:
+        - Visitor ID (from allowed_visitors table)
+        - Security Guard ID who performed the check-in
+        - Address ID being visited
+        - Timestamp of the check-in
+        - Entry method used (name verification or access code)
+        - Any notes added by the security guard
+    - The check-in logs serve as a complete audit trail for community access
+    - Check-in history should be retrievable by:
+        - Address (all visitors to a specific address)
+        - Visitor (all accesses by a specific visitor)
+        - Date/time range (all accesses during a specific period)
+        - Security Guard (all check-ins performed by a specific guard)
+    - Security admins should have access to check-in reports and analytics
+    - Visitor check-in history should be available when viewing visitor details
+    - The current check-in status should be visible in the visitor list
 - Guard lookup functionality has been migrated to the new routes structure at `/routes/guard/lookup`
 - Navigation components updated to reference new guard routes
 - Created dedicated address model in `models/guard/Address.ts` for better type safety
@@ -355,6 +457,22 @@ This document outlines the requirements for building a web application a [securi
   - Protection against false positive validations
   - Clear user feedback messages explaining why addresses are invalid
   - Enhanced address matching algorithms for partial address validation
+
+### Admin Address Validation System
+- Implemented enhanced address validation tools for administrators:
+  - Interactive address detail view for thorough verification
+  - Integration with OpenStreetMap for visual address confirmation
+  - Address component breakdown showing standardized street, city, state, zip
+  - Apartment/unit number clearly highlighted for multi-unit properties
+  - Address verification status indicators with color-coding
+  - Verification history tracking for each address (who verified, when, changes made)
+  - Batch approval interface for processing multiple addresses efficiently
+  - Admin notes field for documenting verification decisions
+  - Exception handling for special address cases
+  - Map-based validation tool showing address pinpoint location
+  - Mobile-responsive design for validation on any device
+  - Search and filter capabilities to quickly find addresses needing verification
+  - Export functionality for address verification reports
 
 ### User Management
 - Implemented secure admin setup endpoint in src/app/api/admin/setup/route.ts
@@ -582,3 +700,19 @@ This document outlines the requirements for building a web application a [securi
 - Type definitions should be placed in the `/types` folder.
 - Database migrations should be placed in the `/supabase/migrations` folder.
 - Admin utilities and scripts should be placed in the `/scripts` folder.
+
+## Admin API Endpoints
+- `/api/admin/users` - User management endpoints:
+  - GET: Retrieve all users with filtering options
+  - PUT: Update user roles and status
+- `/api/admin/addresses` - Address management and validation:
+  - GET: Retrieve all addresses with filtering by status, member, date
+  - PUT: Update address approval status with verification details
+  - POST: Add verification notes or override validation
+- `/api/admin/addresses/batch` - Batch address operations:
+  - POST: Apply approval/rejection to multiple addresses
+- `/api/admin/addresses/verify` - Address verification tools:
+  - GET: Get detailed validation information for an address
+  - POST: Request enhanced validation from mapping service
+- `/api/admin/addresses/map` - Map integration:
+  - GET: Retrieve map coordinates and visualization data for address

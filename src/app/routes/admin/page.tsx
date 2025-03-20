@@ -41,6 +41,11 @@ export default function AdminIndexPage() {
             <p>View and update user roles and statuses</p>
           </Link>
           
+          <Link href="/routes/admin/addresses" className="p-6 bg-white shadow rounded hover:shadow-md transition-shadow">
+            <h2 className="text-xl font-semibold mb-2">Address Management</h2>
+            <p>Review, verify and approve member addresses</p>
+          </Link>
+          
           {/* Add more admin panels as needed */}
         </div>
       </div>

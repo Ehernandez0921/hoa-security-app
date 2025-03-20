@@ -1,5 +1,6 @@
 import * as supabaseUtils from './supabase';
 import { Profile, AllowedVisitor } from './supabase';
+import { AddressSearchResult, VerifyAccessCodeParams, VisitorCheckInParams, AccessCodeVerificationResult } from '@/app/models/guard/Address';
 
 // This file provides a unified interface for data access to Supabase
 
@@ -49,7 +50,7 @@ export async function getAddresses(searchTerm: string): Promise<string[]> {
 /**
  * Get address details including allowed visitors
  */
-export async function getAddressDetails(address: string): Promise<AddressInfo | null> {
+export async function getAddressDetails(address: string): Promise<any> {
   try {
     return await supabaseUtils.getAddressDetails(address);
   } catch (error) {
@@ -91,6 +92,67 @@ export async function getProfileById(id: string) {
   } catch (error) {
     console.error('Error in getProfileById:', error);
     return null;
+  }
+}
+
+/**
+ * Search for addresses with improved details (including apartment numbers)
+ */
+export async function searchAddresses(searchTerm: string): Promise<AddressSearchResult> {
+  try {
+    const result = await supabaseUtils.searchAddresses(searchTerm);
+    return { 
+      addresses: result.addresses || [],
+      error: result.error || undefined 
+    };
+  } catch (error) {
+    console.error('Error in searchAddresses:', error);
+    return { 
+      addresses: [],
+      error: 'Failed to search addresses'
+    };
+  }
+}
+
+/**
+ * Get address details by ID including allowed visitors
+ */
+export async function getAddressDetailsById(addressId: string): Promise<any> {
+  try {
+    return await supabaseUtils.getAddressDetailsById(addressId);
+  } catch (error) {
+    console.error('Error in getAddressDetailsById:', error);
+    return null;
+  }
+}
+
+/**
+ * Verify an access code for a specific address
+ */
+export async function verifyAccessCode(params: VerifyAccessCodeParams): Promise<AccessCodeVerificationResult> {
+  try {
+    return await supabaseUtils.verifyAccessCode(params);
+  } catch (error) {
+    console.error('Error in verifyAccessCode:', error);
+    return { 
+      valid: false, 
+      error: 'Failed to verify access code'
+    };
+  }
+}
+
+/**
+ * Check in a visitor (record access)
+ */
+export async function checkInVisitor(params: VisitorCheckInParams): Promise<{ success: boolean; error?: string; checkIn?: any }> {
+  try {
+    return await supabaseUtils.checkInVisitor(params);
+  } catch (error) {
+    console.error('Error in checkInVisitor:', error);
+    return { 
+      success: false, 
+      error: 'Failed to check in visitor'
+    };
   }
 }
 

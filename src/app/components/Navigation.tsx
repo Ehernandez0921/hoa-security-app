@@ -28,12 +28,7 @@ export default function Navigation() {
         <div className="flex space-x-4">
           {status === 'authenticated' && session ? (
             <>
-              <Link
-                href="/dashboard"
-                className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/dashboard')}`}
-              >
-                Dashboard
-              </Link>
+              {/* Removed Dashboard link that had no valid path */}
               
               {/* Show different links based on user role */}
               {session.user?.role === 'SYSTEM_ADMIN' && (
@@ -50,16 +45,36 @@ export default function Navigation() {
                   >
                     Manage Users
                   </Link>
+                  <Link
+                    href="/routes/admin/addresses"
+                    className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/admin/addresses')}`}
+                  >
+                    Manage Addresses
+                  </Link>
                 </>
               )}
               
               {session.user?.role === 'MEMBER' && (
-                <Link
-                  href="/routes/member/dashboard"
-                  className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/member/dashboard')}`}
-                >
-                  Member Dashboard
-                </Link>
+                <>
+                  <Link
+                    href="/routes/member/dashboard"
+                    className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/member/dashboard')}`}
+                  >
+                    Member Dashboard
+                  </Link>
+                  <Link
+                    href="/routes/member/addresses"
+                    className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/member/addresses')}`}
+                  >
+                    My Addresses
+                  </Link>
+                  <Link
+                    href="/routes/member/visitors"
+                    className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/member/visitors')}`}
+                  >
+                    My Visitors
+                  </Link>
+                </>
               )}
               
               {session.user?.role === 'SECURITY_GUARD' && (
@@ -81,8 +96,8 @@ export default function Navigation() {
           ) : status === 'unauthenticated' ? (
             <>
               <Link
-                href="/routes/login"
-                className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/routes/login')}`}
+                href="/login"
+                className={`px-3 py-2 rounded hover:bg-blue-700 ${isActive('/login')}`}
               >
                 Login
               </Link>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ExpirationOption } from '@/app/models/member/Visitor';
 import { calculateExpirationDate } from '@/lib/visitorAccessClient';
 
@@ -15,29 +15,63 @@ export default function ExpirationDatePicker({
   initialOption = '24h',
   initialCustomDate
 }: ExpirationDatePickerProps) {
+  // Ref to track first mount
+  const isFirstMount = useRef(true);
+  const prevOptionRef = useRef<ExpirationOption>(initialOption);
+  const prevCustomDateRef = useRef<string>(initialCustomDate || '');
+  
+  // Initialize state from props
   const [option, setOption] = useState<ExpirationOption>(initialOption);
   const [customDate, setCustomDate] = useState<string>(initialCustomDate || '');
   
-  // Set default custom date if not provided
+  // Handle initial custom date setting only once
   useEffect(() => {
-    if (option === 'custom' && !customDate) {
-      // Set default custom date to tomorrow
+    if (isFirstMount.current && option === 'custom' && !customDate) {
+      // Set default custom date to tomorrow on first mount only
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       setCustomDate(tomorrow.toISOString().split('T')[0]);
     }
-  }, [option, customDate]);
+    
+    // Mark first mount complete
+    isFirstMount.current = false;
+  }, []);
   
   // Calculate and propagate the expiration date when options change
+  // But only when values actually change to prevent cycles
   useEffect(() => {
-    const expirationDate = calculateExpirationDate(option, customDate);
-    onChange(expirationDate);
+    // Skip if this is just the initialization effect
+    if (isFirstMount.current) return;
+    
+    // Only notify parent if values actually changed
+    if (option !== prevOptionRef.current || customDate !== prevCustomDateRef.current) {
+      const expirationDate = calculateExpirationDate(option, customDate);
+      
+      // Update refs to track what we just sent to parent
+      prevOptionRef.current = option;
+      prevCustomDateRef.current = customDate;
+      
+      // Notify parent
+      onChange(expirationDate);
+    }
   }, [option, customDate, onChange]);
   
   // Format date for display
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
+  // Handle option change in a more controlled way
+  const handleOptionChange = (newOption: ExpirationOption) => {
+    setOption(newOption);
+    
+    // If switching to custom and no date is set, set a default
+    if (newOption === 'custom' && !customDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setCustomDate(tomorrow.toISOString().split('T')[0]);
+    }
   };
   
   return (
@@ -47,7 +81,7 @@ export default function ExpirationDatePicker({
       <div className="grid grid-cols-4 gap-2">
         <button
           type="button"
-          onClick={() => setOption('24h')}
+          onClick={() => handleOptionChange('24h')}
           className={`py-2 px-3 text-sm rounded border ${
             option === '24h' 
               ? 'bg-blue-100 border-blue-500 text-blue-800' 
@@ -59,7 +93,7 @@ export default function ExpirationDatePicker({
         
         <button
           type="button"
-          onClick={() => setOption('1w')}
+          onClick={() => handleOptionChange('1w')}
           className={`py-2 px-3 text-sm rounded border ${
             option === '1w' 
               ? 'bg-blue-100 border-blue-500 text-blue-800' 
@@ -71,7 +105,7 @@ export default function ExpirationDatePicker({
         
         <button
           type="button"
-          onClick={() => setOption('1m')}
+          onClick={() => handleOptionChange('1m')}
           className={`py-2 px-3 text-sm rounded border ${
             option === '1m' 
               ? 'bg-blue-100 border-blue-500 text-blue-800' 
@@ -83,7 +117,7 @@ export default function ExpirationDatePicker({
         
         <button
           type="button"
-          onClick={() => setOption('custom')}
+          onClick={() => handleOptionChange('custom')}
           className={`py-2 px-3 text-sm rounded border ${
             option === 'custom' 
               ? 'bg-blue-100 border-blue-500 text-blue-800' 
