@@ -12,8 +12,7 @@ export default function Register() {
   const [formData, setFormData] = useState<RegistrationFormData>({
     name: '',
     email: '',
-    password: '',
-    address: ''
+    password: ''
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -47,8 +46,7 @@ export default function Register() {
           formData.email,
           formData.password,
           {
-            name: formData.name,
-            address: formData.address
+            name: formData.name
           }
         ) as RegistrationResult;
         
@@ -115,17 +113,6 @@ export default function Register() {
               disabled={loading}
             />
           </div>
-          <div>
-            <label className="block mb-1">Address</label>
-            <input
-              type="text"
-              className="w-full border p-2 rounded"
-              value={formData.address}
-              onChange={e => setFormData({...formData, address: e.target.value})}
-              required
-              disabled={loading}
-            />
-          </div>
           <button
             type="submit"
             className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-blue-300"
@@ -136,6 +123,9 @@ export default function Register() {
         </form>
         <p className="mt-4 text-sm text-gray-600">
           By registering, your account will be reviewed by an administrator before being approved.
+        </p>
+        <p className="mt-2 text-sm text-gray-600">
+          After approval, you can add your addresses in the Address Management section.
         </p>
       </div>
     )

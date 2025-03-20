@@ -47,7 +47,6 @@ export type AllowedVisitor = {
 // Function to create a new user with Supabase
 export async function createUser(email: string, password: string, userData: {
   name: string;
-  address: string;
 }) {
   console.log(`Creating user with email: ${email}`);
   
@@ -77,7 +76,6 @@ export async function createUser(email: string, password: string, userData: {
         name: userData.name,
         email: email,
         role: 'MEMBER', // Default role for new users
-        address: userData.address,
         status: 'PENDING', // New users start with PENDING status
       }
     ]);

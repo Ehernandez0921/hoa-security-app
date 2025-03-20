@@ -25,7 +25,6 @@ export interface VisitorInfo {
  */
 export async function createUser(email: string, password: string, userData: {
   name: string;
-  address: string;
 }) {
   try {
     return await supabaseUtils.createUser(email, password, userData);

@@ -40,7 +40,6 @@ This document outlines the requirements for building a web application a [securi
         id: uuid (references auth.users)
         name: text
         role: text (MEMBER, SECURITY_GUARD, SYSTEM_ADMIN)
-        address: text
         status: text (PENDING, APPROVED, REJECTED)
         email: text (added to store user email in profile)
         created_at: timestamptz
@@ -50,7 +49,6 @@ This document outlines the requirements for building a web application a [securi
         id: uuid
         name: text
         access_code: text (4 digits)
-        member_id: uuid (references profiles.id)
         address_id: uuid (references member_addresses.id)
         created_at: timestamptz
         updated_at: timestamptz
@@ -78,6 +76,7 @@ This document outlines the requirements for building a web application a [securi
         owner_name: text (name of property owner)
         status: text (PENDING, APPROVED, REJECTED)
         is_primary: boolean (indicates if this is the member's primary address)
+        is_active: boolean (indicates if the address is active or soft-deleted)
         created_at: timestamptz
         updated_at: timestamptz
         
@@ -556,6 +555,160 @@ By following these patterns, components with complex state relationships (like V
 - Enhanced error handling throughout the application
 - Improved console logging for application state monitoring
 - Added tools to diagnose and recover from common authentication issues
+
+## Recent Changes and Enhancements
+
+### Security Improvements
+
+1. **Account Status-Based Security**
+   - Added strict account status (PENDING/APPROVED) checks to Member features
+   - Implemented redirection of PENDING users back to dashboard when attempting to access restricted pages
+   - Synchronized UI access with database permissions
+   - Prevented unauthorized access to sensitive features (addresses and visitors management)
+
+2. **Dashboard Improvements**
+   - Modified dashboard to show/hide management cards based on account status
+   - Only APPROVED users can now see Address and Visitor management cards
+   - Added direct database query to fetch the current account status from profiles table
+   - Display pending message only for users with PENDING status
+
+3. **Visitor Access Handling**
+   - Modified `deleteVisitor` function to support soft-deletion
+   - Visitors with check-in records are now automatically deactivated (soft-deleted) instead of throwing an error
+   - Updated DELETE endpoint to handle the new return format and streamline error handling
+   - Removed popup notification for soft-deleted visitors while maintaining initial confirmation dialog
+   - Inactive/soft-deleted visitors are now properly hidden from the UI
+
+4. **Address Management Security**
+   - Added authorization check in address management page to verify user status
+   - Implemented loading states during authorization checks
+   - Added custom confirmation dialog for address deletion
+   - Improved feedback for address management actions
+
+5. **Authentication Flow Enhancement**
+   - Fixed email field handling in registration process
+   - Enhanced login error messaging for better user experience
+   - Corrected registration redirection paths
+   - Added clearer feedback for pending and rejected accounts
+   - Updated authentication logic to handle pending approval and rejected statuses
+   - Added automatic email confirmation for new users using admin privileges
+   - Improved error handling for various authentication edge cases (unconfirmed emails, rejected accounts)
+   - Fixed NextAuth session handling to properly store and retrieve user roles
+   - Added admin tools to help with email confirmation issues
+
+6. **Session Management Enhancement**
+   - Improved JWT callback to properly store user information in token
+   - Enhanced session callback to handle role resolution from token
+   - Fixed "Cannot read properties of undefined (reading 'role')" error in session
+   - Added robust error handling for session creation and retrieval
+   - Improved logging for authentication and session debugging
+
+7. **Email Verification Workflow**
+   - Added support for email confirmation process with Supabase
+   - Implemented automatic email confirmation during registration when possible
+   - Added clear error messages for unconfirmed email accounts
+   - Created admin tools to manually confirm user emails when needed
+   - Enhanced registration success message to explain the verification process
+
+### Code Quality Improvements
+
+1. **Error Handling**
+   - Standardized error messaging across the application
+   - Improved user feedback for failed operations
+   - Enhanced logging for debugging and tracking issues
+   - Added detailed console logging for authentication and session processes
+   - Implemented try-catch blocks with specific error types for better error identification
+
+2. **State Management**
+   - Added proper loading states during asynchronous operations
+   - Implemented structured state for complex UI interactions
+   - Fixed linter errors and type issues in components
+   - Enhanced state handling for authorization checks
+   - Added auth loading states to prevent UI flicker during status checks
+
+3. **Consistent UI Experience**
+   - Standardized confirmation dialogs across the application
+   - Improved loading indicators for better user experience
+   - Enhanced visibility of account status information
+   - Added clear status indicators in the dashboard for pending accounts
+   - Implemented conditional rendering of UI elements based on account status
+
+### Security Design Principles Implemented
+
+1. **Least Privilege Access**
+   - Users can only access features appropriate to their account status
+   - PENDING users are restricted to viewing basic profile information
+   - Role-based permissions enforced both in UI and database layer
+   - Added explicit status checks before allowing access to sensitive features
+
+2. **Defense in Depth**
+   - Added multiple layers of security checks (session verification, status checks, database policies)
+   - Client-side restrictions backed by server-side validation
+   - Implemented both UI-level and API-level authorization controls
+   - Added database-level verification of user status
+
+3. **User Experience Security**
+   - Clear status information to help users understand their account limitations
+   - Intuitive navigation that prevents access to unauthorized features
+   - Helpful error messages that guide users without revealing sensitive details
+   - Improved feedback for email verification and account approval process
+   - Enhanced login error messaging with actionable next steps
+
+### Admin Enhancements
+
+1. **User Management Tools**
+   - Added "Confirm Email" functionality to the admin user management interface
+   - Enhanced user listing with status highlighting (pending users have yellow background)
+   - Improved user management workflow for handling unconfirmed emails
+   - Added more detailed status information for better admin decision-making
+
+2. **Authentication Debugging**
+   - Added detailed authentication logging for troubleshooting
+   - Enhanced error handling in auth callbacks
+   - Improved feedback for authentication-related issues
+   - Added tools to identify and resolve common authentication problems
+
+### Registration and Login Flow Improvements
+
+1. **Enhanced Registration Process**
+   - Removed address field from registration process
+   - Simplified registration form focusing on essential user information
+   - Added guidance about managing addresses through the dedicated Address Management page
+   - Clarified the two-step process (email verification + admin approval)
+   - Added better success messaging after registration
+   - Improved redirection paths after registration completion
+   - Fixed email field storage in profiles table
+
+2. **Profile Management Changes**
+   - Removed address management from the profile page
+   - Added link to dedicated Address Management section
+   - Improved profile UI with clearer account status indicators
+   - Enhanced profile data display with better organization
+
+3. **Multiple Addresses Support**
+   - Completely removed address field from profiles table in the database
+   - Address management now exclusively through dedicated member_addresses table
+   - Updated all code to work with the new schema
+   - Registration process simplified to no longer request address
+   - Added is_active flag to member_addresses for soft deletion support
+   - Enhanced profile management to direct users to Address Management section
+   - All database operations updated to work with the new model
+   - Migration created to cleanly remove the address column
+   - Seed data updated to align with new schema
+
+4. **Database Schema Improvements**
+   - Streamlined database design with clearer entity relationships
+   - Removed redundant address storage from multiple places
+   - Better alignment with multi-address support requirements
+   - Simplified profile table with removal of unnecessary fields
+   - Enhanced normalization for better data management
+
+5. **User Interface Updates**
+   - Registration form simplified with address field removed
+   - Profile display improved to focus on core user information
+   - Clear guidance for users on where to manage addresses
+   - Added explanatory text about multi-address management
+   - Enhanced user flow for address management
 
 ## Current File Structure
 

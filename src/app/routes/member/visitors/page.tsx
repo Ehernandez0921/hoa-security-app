@@ -365,7 +365,7 @@ export default function VisitorManagementPage() {
   };
   
   // Show loading state
-  if (authStatus === 'loading' || (authStatus === 'authenticated' && isLoading && visitors.length === 0)) {
+  if (authLoading || (isLoading && visitors.length === 0)) {
     return (
       <div className="container mx-auto py-8 px-4">
         <h1 className="text-2xl font-bold mb-6">Visitor Management</h1>
