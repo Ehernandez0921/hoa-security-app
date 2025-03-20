@@ -216,29 +216,71 @@ export default function VisitorList({
     }
   };
 
-  // Render action buttons for a visitor
-  const renderActionButtons = (visitor: Visitor) => (
-    <div className="flex flex-col space-y-2">
-      <button
-        onClick={() => onEdit(visitor)}
-        className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
-      >
-        Edit
-      </button>
-      {onInactivate && !isExpired(visitor) && (
-        <button
-          onClick={() => handleRevokeAccess(visitor.id)}
-          className="w-full px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm font-medium"
-        >
-          Revoke
-        </button>
-      )}
-      <button
-        onClick={() => onDelete(visitor.id)}
-        className="w-full px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
-      >
-        Delete
-      </button>
+  // Render visitor card for mobile/tablet view
+  const renderVisitorCard = (visitor: Visitor) => (
+    <div className={`border rounded-lg shadow-sm overflow-hidden bg-white ${isExpired(visitor) ? 'border-gray-200' : 'border-gray-300'}`}>
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={selectedVisitors.includes(visitor.id)}
+              onChange={() => toggleSelect(visitor.id)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer mr-3"
+            />
+            {renderVisitorIdentifier(visitor)}
+          </div>
+          <span
+            className={`ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+              !visitor.is_active
+                ? 'bg-red-100 text-red-800'
+                : new Date(visitor.expires_at) < new Date()
+                  ? 'bg-red-100 text-red-800'
+                  : 'bg-green-100 text-green-800'
+            }`}
+          >
+            {!visitor.is_active
+              ? 'Inactive'
+              : new Date(visitor.expires_at) < new Date()
+                ? 'Expired'
+                : 'Active'}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2 text-sm mb-4">
+          <div>
+            <p className="text-gray-500 font-medium">Expires</p>
+            <p>{formatDate(visitor.expires_at)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 font-medium">Last Used</p>
+            <p>{visitor.last_used ? formatDate(visitor.last_used) : 'Never'}</p>
+          </div>
+        </div>
+        
+        <div className="flex space-x-2">
+          <button
+            onClick={() => onEdit(visitor)}
+            className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+          >
+            Edit
+          </button>
+          {onInactivate && !isExpired(visitor) && (
+            <button
+              onClick={() => handleRevokeAccess(visitor.id)}
+              className="flex-1 px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm font-medium"
+            >
+              Revoke
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(visitor.id)}
+            className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   );
   
@@ -379,82 +421,115 @@ export default function VisitorList({
         </div>
       </div>
       
-      {/* Visitor table */}
+      {/* Responsive Visitor Display */}
       {visitors.length > 0 ? (
-        <div className="overflow-hidden shadow overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 table-fixed">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="w-10 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <input
-                    type="checkbox"
-                    checked={selectedVisitors.length === visitors.length && visitors.length > 0}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
-                  />
-                </th>
-                <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Visitor
-                </th>
-                <th scope="col" className="w-1/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Expires
-                </th>
-                <th scope="col" className="w-20 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="w-1/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Used
-                </th>
-                <th scope="col" className="w-40 min-w-[150px] px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {visitors.map((visitor) => (
-                <tr key={visitor.id} className={isExpired(visitor) ? 'bg-gray-50' : ''}>
-                  <td className="w-10 px-6 py-4 whitespace-nowrap">
+        <>
+          {/* Table view for large screens (hidden on medium and below) */}
+          <div className="hidden lg:block overflow-hidden shadow rounded-lg">
+            <table className="min-w-full divide-y divide-gray-200 table-fixed">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="w-10 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <input
                       type="checkbox"
-                      checked={selectedVisitors.includes(visitor.id)}
-                      onChange={() => toggleSelect(visitor.id)}
+                      checked={selectedVisitors.length === visitors.length && visitors.length > 0}
+                      onChange={toggleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                     />
-                  </td>
-                  <td className="w-1/4 px-6 py-4">
-                    {renderVisitorIdentifier(visitor)}
-                  </td>
-                  <td className="w-1/5 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(visitor.expires_at)}
-                  </td>
-                  <td className="w-20 px-6 py-4 whitespace-nowrap text-center">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        !visitor.is_active
-                          ? 'bg-red-100 text-red-800'
-                          : new Date(visitor.expires_at) < new Date()
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-green-100 text-green-800'
-                      }`}
-                    >
-                      {!visitor.is_active
-                        ? 'Inactive'
-                        : new Date(visitor.expires_at) < new Date()
-                          ? 'Expired'
-                          : 'Active'}
-                    </span>
-                  </td>
-                  <td className="w-1/5 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {visitor.last_used ? formatDate(visitor.last_used) : 'Never'}
-                  </td>
-                  <td className="w-40 min-w-[150px] px-6 py-4 whitespace-nowrap">
-                    {renderActionButtons(visitor)}
-                  </td>
+                  </th>
+                  <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Visitor
+                  </th>
+                  <th scope="col" className="w-1/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Expires
+                  </th>
+                  <th scope="col" className="w-20 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="w-1/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Used
+                  </th>
+                  <th scope="col" className="w-40 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {visitors.map((visitor) => (
+                  <tr key={visitor.id} className={isExpired(visitor) ? 'bg-gray-50' : ''}>
+                    <td className="w-10 px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedVisitors.includes(visitor.id)}
+                        onChange={() => toggleSelect(visitor.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                      />
+                    </td>
+                    <td className="w-1/4 px-6 py-4">
+                      {renderVisitorIdentifier(visitor)}
+                    </td>
+                    <td className="w-1/5 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(visitor.expires_at)}
+                    </td>
+                    <td className="w-20 px-6 py-4 whitespace-nowrap text-center">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          !visitor.is_active
+                            ? 'bg-red-100 text-red-800'
+                            : new Date(visitor.expires_at) < new Date()
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-green-100 text-green-800'
+                        }`}
+                      >
+                        {!visitor.is_active
+                          ? 'Inactive'
+                          : new Date(visitor.expires_at) < new Date()
+                            ? 'Expired'
+                            : 'Active'}
+                      </span>
+                    </td>
+                    <td className="w-1/5 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {visitor.last_used ? formatDate(visitor.last_used) : 'Never'}
+                    </td>
+                    <td className="w-40 px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex justify-center space-x-2">
+                        <button
+                          onClick={() => onEdit(visitor)}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                        {onInactivate && !isExpired(visitor) && (
+                          <button
+                            onClick={() => handleRevokeAccess(visitor.id)}
+                            className="px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm font-medium"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onDelete(visitor.id)}
+                          className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Card grid view for medium and small screens (hidden on large screens) */}
+          <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {visitors.map((visitor) => (
+              <div key={visitor.id}>
+                {renderVisitorCard(visitor)}
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
         renderNoVisitorsMessage()
       )}
