@@ -15,6 +15,36 @@ export default function AdminUsersPage() {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [emailConfirmLoading, setEmailConfirmLoading] = useState<Record<string, boolean>>({})
+  const [roleFilter, setRoleFilter] = useState<string>('ALL')
+  const [statusFilter, setStatusFilter] = useState<string>('PENDING')
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+
+  // Apply filters whenever users, roleFilter, statusFilter, or searchQuery changes
+  useEffect(() => {
+    let filtered = [...users]
+    
+    // Apply role filter
+    if (roleFilter !== 'ALL') {
+      filtered = filtered.filter(user => user.role === roleFilter)
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'ALL') {
+      filtered = filtered.filter(user => user.status === statusFilter)
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(user => 
+        (user.name?.toLowerCase().includes(query) || 
+         user.email?.toLowerCase().includes(query))
+      )
+    }
+    
+    setFilteredUsers(filtered)
+  }, [users, roleFilter, statusFilter, searchQuery])
 
   // Security: Redirect non-admin users away from this page
   useEffect(() => {
@@ -157,6 +187,68 @@ export default function AdminUsersPage() {
             {error}
           </div>
         )}
+
+        {/* Filter Controls */}
+        <div className="mb-6 space-y-4">
+          {/* Search Box */}
+          <div className="w-full max-w-md">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or email..."
+                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
+              <div className="absolute left-3 top-2.5 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Dropdown Filters */}
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center space-x-2">
+              <label htmlFor="roleFilter" className="text-sm font-medium text-gray-700">
+                Role:
+              </label>
+              <select
+                id="roleFilter"
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="text-sm border rounded p-2 bg-white"
+              >
+                <option value="ALL">All Roles</option>
+                <option value="MEMBER">Member</option>
+                <option value="SECURITY_GUARD">Security Guard</option>
+                <option value="SYSTEM_ADMIN">System Admin</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <label htmlFor="statusFilter" className="text-sm font-medium text-gray-700">
+                Status:
+              </label>
+              <select
+                id="statusFilter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-sm border rounded p-2 bg-white"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+
+            <div className="flex items-center text-sm text-gray-500">
+              {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
+            </div>
+          </div>
+        </div>
         
         <div className="bg-white shadow rounded overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -180,7 +272,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <tr key={user.id} className={user.status === 'PENDING' ? 'bg-yellow-50' : ''}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{user.name}</div>
@@ -230,7 +322,7 @@ export default function AdminUsersPage() {
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && (
+              {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
                     No users found

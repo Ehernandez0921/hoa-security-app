@@ -15,6 +15,34 @@ export default function AdminAddressesPage() {
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('PENDING');
   const [selectedAddressIds, setSelectedAddressIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filteredAddresses, setFilteredAddresses] = useState<MemberAddress[]>([]);
+  
+  // Apply filters whenever addresses or search query changes
+  useEffect(() => {
+    let filtered = [...addresses];
+
+    // Apply status filter
+    if (filterStatus !== 'ALL') {
+      filtered = filtered.filter(address => address.status === filterStatus);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(address => 
+        address.address?.toLowerCase().includes(query) ||
+        address.apartment_number?.toLowerCase().includes(query) ||
+        address.owner_name?.toLowerCase().includes(query) ||
+        // @ts-ignore - we know profiles field exists from the API as it's used in the table
+        address.profiles?.name?.toLowerCase().includes(query) ||
+        // @ts-ignore - we know profiles field exists from the API as it's used in the table
+        address.profiles?.email?.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredAddresses(filtered);
+  }, [addresses, filterStatus, searchQuery]);
   
   // Check if user is authenticated and has required role
   useEffect(() => {
@@ -168,50 +196,46 @@ export default function AdminAddressesPage() {
       )}
       
       {/* Filters */}
-      <div className="mb-6">
-        <div className="flex items-center space-x-4">
-          <label className="font-medium text-gray-700">Filter:</label>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setFilterStatus('PENDING')}
-              className={`px-3 py-1 rounded text-sm ${
-                filterStatus === 'PENDING'
-                  ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+      <div className="mb-6 space-y-4">
+        {/* Search Box */}
+        <div className="w-full max-w-md">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search addresses..."
+              className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            />
+            <div className="absolute left-3 top-2.5 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Dropdown Filters */}
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center space-x-2">
+            <label htmlFor="statusFilter" className="text-sm font-medium text-gray-700">
+              Status:
+            </label>
+            <select
+              id="statusFilter"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="text-sm border rounded p-2 bg-white"
             >
-              Pending
-            </button>
-            <button
-              onClick={() => setFilterStatus('APPROVED')}
-              className={`px-3 py-1 rounded text-sm ${
-                filterStatus === 'APPROVED'
-                  ? 'bg-green-100 text-green-800 border border-green-300'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Approved
-            </button>
-            <button
-              onClick={() => setFilterStatus('REJECTED')}
-              className={`px-3 py-1 rounded text-sm ${
-                filterStatus === 'REJECTED'
-                  ? 'bg-red-100 text-red-800 border border-red-300'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Rejected
-            </button>
-            <button
-              onClick={() => setFilterStatus('ALL')}
-              className={`px-3 py-1 rounded text-sm ${
-                filterStatus === 'ALL'
-                  ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
+              <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
+
+          <div className="flex items-center text-sm text-gray-500">
+            {filteredAddresses.length} address{filteredAddresses.length !== 1 ? 'es' : ''} found
           </div>
         </div>
       </div>
@@ -227,7 +251,7 @@ export default function AdminAddressesPage() {
       )}
       
       {/* Address list */}
-      {addresses.length === 0 ? (
+      {filteredAddresses.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-500">
           <p>No addresses found with the current filter.</p>
         </div>
@@ -262,7 +286,7 @@ export default function AdminAddressesPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {addresses.map((address) => (
+              {filteredAddresses.map((address) => (
                 <tr key={address.id}>
                   <td className="px-3 py-4 whitespace-nowrap">
                     <input
