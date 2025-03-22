@@ -231,7 +231,10 @@ By following these patterns, components with complex state relationships (like V
   - The AddressList component displays all addresses with status indicators and apartment numbers
   - The AddressForm component enables adding and editing addresses with apartment number support
   - RLS policies ensure members can only view and manage their own addresses
-  - Migration from single-address to multi-address system preserves existing data
+  - Important Note: Address data is now managed exclusively through the member_addresses table
+    - The profiles table no longer stores address information
+    - Primary address is determined by the is_primary flag in member_addresses
+    - All address operations (create, update, delete) are handled through member_addresses
   - Robust address validation ensures only valid real-world addresses can be saved:
     - Client-side validation via OpenStreetMap API during form entry
     - Server-side validation before saving to database
