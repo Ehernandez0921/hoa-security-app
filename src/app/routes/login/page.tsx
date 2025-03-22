@@ -15,6 +15,8 @@ export default function Login() {
     email: '',
     password: ''
   })
+  const [resendingEmail, setResendingEmail] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
 
   // Redirect authenticated users away from login page
   useEffect(() => {
@@ -55,9 +57,27 @@ export default function Login() {
           if (result.error.includes('confirm your account')) {
             setError(
               <div>
-                <p>Please check your email and confirm your account before logging in.</p>
+                <p className="font-bold">Email verification required</p>
+                <p className="mt-1">Your account needs to be verified before you can log in.</p>
+                <ul className="list-disc ml-5 mt-2 text-sm">
+                  <li>Check your email inbox (and spam folder) for a verification link from Supabase</li>
+                  <li>Click the verification link in the email to confirm your account</li>
+                  <li>Return to this page and try logging in again</li>
+                </ul>
                 <p className="mt-2 text-sm">
-                  Check your email inbox for a verification link from Supabase.
+                  {resendSuccess ? (
+                    <span className="text-green-700">
+                      Verification email sent! Please check your inbox (and spam folder).
+                    </span>
+                  ) : (
+                    <button 
+                      className="text-blue-700 underline disabled:text-gray-400"
+                      onClick={handleResendVerification}
+                      disabled={resendingEmail}
+                    >
+                      {resendingEmail ? 'Sending...' : 'Didn\'t receive the email? Click here to resend verification'}
+                    </button>
+                  )}
                 </p>
               </div>
             )
@@ -99,16 +119,60 @@ export default function Login() {
       }
     }
 
+    // Function to resend verification email
+    const handleResendVerification = async (e: React.MouseEvent) => {
+      e.preventDefault();
+      
+      if (!formData.email) {
+        alert("Please enter your email address in the form first");
+        return;
+      }
+      
+      try {
+        setResendingEmail(true);
+        setResendSuccess(false);
+        
+        const response = await fetch('/api/auth/resend-verification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: formData.email }),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          setResendSuccess(true);
+        } else {
+          alert(`Error: ${result.error || 'Failed to resend verification email'}`);
+        }
+      } catch (error) {
+        console.error('Error resending verification email:', error);
+        alert('An unexpected error occurred. Please try again later.');
+      } finally {
+        setResendingEmail(false);
+      }
+    };
+
     return (
       <div className="max-w-md mx-auto mt-8">
         <h1 className="text-2xl font-bold mb-4">Login</h1>
         
         {isRegistered && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            <p>Registration successful! Your account requires two steps:</p>
+            <p><strong>Registration successful!</strong> Your account requires two steps:</p>
             <ol className="list-decimal ml-5 mt-2">
-              <li>Check your email and click the verification link</li>
-              <li>Wait for administrator approval</li>
+              <li>
+                <strong>Email Verification:</strong> We've attempted to verify your email automatically.
+                If it wasn't successful, please check your email for a verification link from Supabase.
+                <ul className="list-disc ml-5 mt-1 text-sm">
+                  <li>If you don't see the email, check your spam/junk folder</li>
+                  <li>The email should arrive within a few minutes</li>
+                  <li>If you still can't find it, try logging in - you'll get an error message with more instructions</li>
+                </ul>
+              </li>
+              <li className="mt-2"><strong>Admin Approval:</strong> After email verification, an administrator will review and approve your account.</li>
             </ol>
           </div>
         )}

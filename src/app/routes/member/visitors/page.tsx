@@ -81,7 +81,7 @@ export default function VisitorManagementPage() {
   }, [session, authStatus, router]);
   
   // Show loading while checking authorization
-  if (authStatus === 'loading' || authLoading) {
+  if (authLoading) {
     return <div className="container mx-auto p-4">Loading...</div>;
   }
   

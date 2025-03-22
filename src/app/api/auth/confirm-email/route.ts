@@ -11,6 +11,52 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
+// Helper function to wait for specified milliseconds
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Function to attempt email confirmation with retries
+async function attemptEmailConfirmation(userId: string, maxRetries = 3) {
+  let lastError: any = null;
+  
+  // Try to confirm email with fixed delay of 2 seconds
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Fixed delay of 2 seconds between attempts
+      const delayMs = 2000; 
+      console.log(`[Server] Waiting ${delayMs}ms before attempt ${attempt + 1}/${maxRetries}...`);
+      await wait(delayMs);
+      
+      console.log(`[Server] Attempt ${attempt + 1}/${maxRetries} to confirm email for user: ${userId}`);
+      
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { email_confirm: true }
+      );
+      
+      if (!error) {
+        console.log(`[Server] Email confirmed successfully on attempt ${attempt + 1}`);
+        return { success: true, error: null };
+      }
+      
+      lastError = error;
+      
+      // If it's not a "User not found" error, don't retry
+      if (!error.message.includes('User not found')) {
+        console.error(`[Server] Non-retryable error on attempt ${attempt + 1}:`, error);
+        break;
+      }
+      
+      console.log(`[Server] User not found on attempt ${attempt + 1}, will retry`);
+    } catch (error) {
+      lastError = error;
+      console.error(`[Server] Unexpected error on attempt ${attempt + 1}:`, error);
+    }
+  }
+  
+  console.error('[Server] Failed to confirm email after maximum retry attempts');
+  return { success: false, error: lastError };
+}
+
 export async function POST(request: Request) {
   try {
     const { userId } = await request.json();
@@ -19,32 +65,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
     }
     
-    console.log(`[Server] Attempting to confirm email for user: ${userId}`);
+    console.log(`[Server] Starting email confirmation process for user: ${userId}`);
     
-    // Add a small delay to ensure the user is fully created in the auth system
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Attempt to confirm email with retries
+    const { success, error } = await attemptEmailConfirmation(userId);
     
-    // Confirm the email using the admin client
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { email_confirm: true }
-    );
-    
-    if (error) {
-      console.error('[Server] Error confirming email:', error);
-      
-      // Check specifically for "User not found" errors which could be timing related
-      if (error.message && error.message.includes('User not found')) {
-        console.log('[Server] User not found error - this might be a timing issue. The user was created but not yet available for updates.');
-      }
-      
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (!success) {
+      console.error('[Server] Email confirmation failed after all retries:', error);
+      return NextResponse.json({ 
+        success: false, 
+        error: error?.message || 'Failed to confirm email after multiple attempts',
+        code: error?.code
+      }, { status: 500 });
     }
     
-    console.log('[Server] Email confirmed successfully');
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[Server] Unexpected error during email confirmation:', error);
+    console.error('[Server] Unexpected error during email confirmation process:', error);
     return NextResponse.json(
       { success: false, error: 'An unexpected error occurred' },
       { status: 500 }
