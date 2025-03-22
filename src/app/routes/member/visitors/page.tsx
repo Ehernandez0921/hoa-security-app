@@ -39,58 +39,8 @@ export default function VisitorManagementPage() {
   
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  
-  // Check if user is authorized (APPROVED status)
-  useEffect(() => {
-    async function checkAuthorization() {
-      if (authStatus === 'unauthenticated') {
-        router.push('/routes/login');
-        return;
-      }
-      
-      if (authStatus === 'authenticated' && session?.user?.id) {
-        try {
-          // Check profile status
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('status')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (error) {
-            console.error('Error checking profile status:', error);
-            setIsAuthorized(false);
-          } else if (data && data.status === 'APPROVED') {
-            setIsAuthorized(true);
-          } else {
-            console.log('User not approved, redirecting to dashboard');
-            router.push('/routes/member/dashboard');
-          }
-        } catch (err) {
-          console.error('Unexpected error checking authorization:', err);
-          setIsAuthorized(false);
-        } finally {
-          setAuthLoading(false);
-        }
-      } else if (authStatus !== 'loading') {
-        setAuthLoading(false);
-      }
-    }
-    
-    checkAuthorization();
-  }, [session, authStatus, router]);
-  
-  // Show loading while checking authorization
-  if (authLoading) {
-    return <div className="container mx-auto p-4">Loading...</div>;
-  }
-  
-  // Unauthorized users don't see the content
-  if (!isAuthorized) {
-    return null;
-  }
-  
-  // Fetch visitors data
+
+  // Function definitions
   const fetchVisitors = async () => {
     setIsLoading(true);
     setError(null);
@@ -144,6 +94,46 @@ export default function VisitorManagementPage() {
       // User will be notified in the form that they don't have approved addresses
     }
   };
+
+  // useEffect hooks
+  useEffect(() => {
+    async function checkAuthorization() {
+      if (authStatus === 'unauthenticated') {
+        router.push('/routes/login');
+        return;
+      }
+      
+      if (authStatus === 'authenticated' && session?.user?.id) {
+        try {
+          // Check profile status
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('status')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (error) {
+            console.error('Error checking profile status:', error);
+            setIsAuthorized(false);
+          } else if (data && data.status === 'APPROVED') {
+            setIsAuthorized(true);
+          } else {
+            console.log('User not approved, redirecting to dashboard');
+            router.push('/routes/member/dashboard');
+          }
+        } catch (err) {
+          console.error('Unexpected error checking authorization:', err);
+          setIsAuthorized(false);
+        } finally {
+          setAuthLoading(false);
+        }
+      } else if (authStatus !== 'loading') {
+        setAuthLoading(false);
+      }
+    }
+    
+    checkAuthorization();
+  }, [session, authStatus, router]);
   
   // Load visitors and addresses when component mounts or when filters change
   useEffect(() => {
@@ -152,12 +142,21 @@ export default function VisitorManagementPage() {
       fetchAddresses();
     }
   }, [authStatus, session, filters]);
+
+  // Show loading while checking authorization
+  if (authLoading) {
+    return <div className="container mx-auto p-4">Loading...</div>;
+  }
   
-  // Create a new visitor
+  // Unauthorized users don't see the content
+  if (!isAuthorized) {
+    return null;
+  }
+
+  // Rest of the component handlers
   const handleCreateVisitor = async (visitorData: VisitorCreateParams | VisitorUpdateParams) => {
     setIsSubmitting(true);
     try {
-      // For create operation, we need VisitorCreateParams
       const createData = visitorData as VisitorCreateParams;
       
       const response = await fetch('/api/member/visitors', {
@@ -173,7 +172,6 @@ export default function VisitorManagementPage() {
         throw new Error(errorData.error || 'Failed to create visitor');
       }
       
-      // Close form and refresh list
       setShowAddForm(false);
       fetchVisitors();
     } catch (err) {

@@ -27,6 +27,36 @@ export default function MemberAddressesPage() {
   
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Load all addresses for the current member
+  const loadAddresses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/member/addresses');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error loading addresses');
+      }
+      
+      const data = await response.json();
+      setAddresses(data.addresses);
+    } catch (err) {
+      console.error('Error fetching addresses:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load addresses');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Load addresses when component mounts and user is authenticated
+  useEffect(() => {
+    if (authStatus === 'authenticated') {
+      loadAddresses();
+    }
+  }, [authStatus]);
   
   // Check if user is authorized (APPROVED status)
   useEffect(() => {
@@ -77,36 +107,6 @@ export default function MemberAddressesPage() {
   if (!isAuthorized) {
     return null;
   }
-  
-  // Load addresses when component mounts
-  useEffect(() => {
-    if (authStatus === 'authenticated') {
-      loadAddresses();
-    }
-  }, [authStatus]);
-  
-  // Load all addresses for the current member
-  const loadAddresses = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/member/addresses');
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error loading addresses');
-      }
-      
-      const data = await response.json();
-      setAddresses(data.addresses);
-    } catch (err) {
-      console.error('Error fetching addresses:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load addresses');
-    } finally {
-      setLoading(false);
-    }
-  };
   
   // Handle adding a new address
   const handleAddAddress = async (addressData: MemberAddressCreateParams) => {
