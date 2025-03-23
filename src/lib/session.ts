@@ -1,3 +1,5 @@
+'use server';
+
 import { Session } from "next-auth";
 import { supabase } from "./supabase";
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
