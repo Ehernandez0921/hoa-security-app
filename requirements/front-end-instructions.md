@@ -60,13 +60,18 @@ This document outlines the requirements for building a web application a [securi
         
     visitor_check_ins:
         id: uuid (primary key)
-        visitor_id: uuid (references allowed_visitors.id)
-        address_id: uuid (references member_addresses.id)
+        visitor_id: uuid (references allowed_visitors.id, nullable for unregistered visitors)
+        address_id: uuid (references member_addresses.id, nullable for unregistered addresses)
         checked_in_by: uuid (references profiles.id, the security guard)
         check_in_time: timestamptz (when the check-in occurred)
         entry_method: text (NAME_VERIFICATION or ACCESS_CODE)
         notes: text (optional notes added by security guard)
         created_at: timestamptz
+        first_name: text (for unregistered visitors)
+        last_name: text (for unregistered visitors)
+        unregistered_address: text (full address for non-member locations)
+        address_details: jsonb (stores detailed address components for unregistered addresses)
+        is_registered_address: boolean (indicates if this was a registered member address)
         
     member_addresses:
         id: uuid (primary key)
@@ -378,6 +383,29 @@ By following these patterns, components with complex state relationships (like V
     - Address suggestions are provided in real-time as the guard types
     - Improved address lookup uses OpenStreetMap API for accurate and standardized address results
     - Address results are filtered and ranked by quality for relevance
+    - **Enhanced Address Lookup with Fallback**:
+        - Primary search attempts to find registered member addresses in the database
+        - If no member addresses are found, automatically falls back to OpenStreetMap API
+        - Fallback results are clearly marked with an orange indicator to show they're not registered
+        - OpenStreetMap results include:
+            - Full street address with house number
+            - City, state, and postal code
+            - Visual distinction between registered and unregistered addresses
+        - Address validation ensures proper formatting and real address verification
+        - Rate limiting and caching implemented for OpenStreetMap API calls
+        - Results are cached for 24 hours to prevent excessive API usage
+        - Proper error handling for API timeouts or service unavailability
+        - User-Agent identification as required by OpenStreetMap usage policy
+        - Results filtered to ensure only US addresses are shown
+        - Address components verified to include road name and house number
+    - **Non-Registered Address Handling**:
+        - When selecting an unregistered address:
+            - System displays the non-registered visitor check-in form
+            - Form is styled with orange theme to indicate non-standard process
+            - Clear warning message explains this is for unregistered addresses
+            - Requires additional information capture for visitor logging
+            - Check-ins are properly logged with address details
+            - Address information is preserved for future reference
 - When viewing a member's address, the guard should see a complete list of all active visitors:
     - Named visitors showing first and last name for identification verification
     - Anonymous visitors with access codes for verification
@@ -872,3 +900,61 @@ By following these patterns, components with complex state relationships (like V
   - POST: Request enhanced validation from mapping service
 - `/api/admin/addresses/map` - Map integration:
   - GET: Retrieve map coordinates and visualization data for address
+
+## Guard API Endpoints:
+- `/api/guard/lookup` - Address lookup endpoints:
+    - GET: Search for addresses with fallback to OpenStreetMap
+        - Query Parameters:
+            - `q`: Search query string
+            - `include_unregistered`: Boolean to enable OpenStreetMap fallback
+        - Response Format:
+            ```typescript
+            interface AddressSearchResponse {
+              results: Array<{
+                address: string;
+                isRegistered: boolean;
+                source: 'member' | 'openstreetmap';
+                details?: {
+                  houseNumber: string;
+                  street: string;
+                  city: string;
+                  state: string;
+                  postalCode: string;
+                };
+                memberInfo?: {
+                  id: string;
+                  ownerName: string;
+                };
+              }>;
+              totalCount: number;
+              hasMoreResults: boolean;
+            }
+            ```
+    - POST: Log visitor check-in for unregistered address
+        - Request Body:
+            ```typescript
+            interface UnregisteredCheckInRequest {
+              address: string;
+              addressDetails: {
+                houseNumber: string;
+                street: string;
+                city: string;
+                state: string;
+                postalCode: string;
+              };
+              visitorInfo: {
+                firstName: string;
+                lastName: string;
+                notes?: string;
+              };
+            }
+            ```
+- `/api/guard/visitors/check-in` - Visitor check-in endpoint:
+    - POST: Record visitor check-in with enhanced address support
+        - Handles both registered and unregistered addresses
+        - Maintains consistent logging format for all check-ins
+        - Preserves address details for unregistered locations
+        - Supports both access code and name verification methods
+        - Records entry method and verification details
+        - Includes guard identification and timestamp
+        - Optional notes field for additional information
