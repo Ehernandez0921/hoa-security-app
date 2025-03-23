@@ -12,10 +12,23 @@ export default function Register() {
   const [formData, setFormData] = useState<RegistrationFormData>({
     name: '',
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+
+  // Add password validation function
+  const validatePasswords = (password: string, confirmPassword: string) => {
+    if (confirmPassword && password !== confirmPassword) {
+      setPasswordError('Passwords do not match')
+    } else if (confirmPassword && password.length < 8) {
+      setPasswordError('Password must be at least 8 characters long')
+    } else {
+      setPasswordError('')
+    }
+  }
 
   // Redirect authenticated users away from register page
   useEffect(() => {
@@ -37,8 +50,22 @@ export default function Register() {
   if (status === 'unauthenticated') {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault()
-      setLoading(true)
+      
+      // Reset errors
       setError('')
+      
+      // Final validation before submit
+      if (formData.password !== formData.confirmPassword) {
+        setPasswordError('Passwords do not match')
+        return
+      }
+
+      if (formData.password.length < 8) {
+        setPasswordError('Password must be at least 8 characters long')
+        return
+      }
+      
+      setLoading(true)
       
       try {
         // Call our dataAccess layer to create the user with Supabase
@@ -79,6 +106,11 @@ export default function Register() {
             {error}
           </div>
         )}
+        {passwordError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {passwordError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block mb-1">Name</label>
@@ -106,17 +138,40 @@ export default function Register() {
             <label className="block mb-1">Password</label>
             <input
               type="password"
-              className="w-full border p-2 rounded"
+              className={`w-full border p-2 rounded ${passwordError ? 'border-red-500' : ''}`}
               value={formData.password}
-              onChange={e => setFormData({...formData, password: e.target.value})}
+              onChange={e => {
+                const newPassword = e.target.value;
+                setFormData({...formData, password: newPassword});
+                validatePasswords(newPassword, formData.confirmPassword);
+              }}
               required
               disabled={loading}
+              minLength={8}
+              placeholder="Minimum 8 characters"
+            />
+          </div>
+          <div>
+            <label className="block mb-1">Confirm Password</label>
+            <input
+              type="password"
+              className={`w-full border p-2 rounded ${passwordError ? 'border-red-500' : ''}`}
+              value={formData.confirmPassword}
+              onChange={e => {
+                const confirmPass = e.target.value;
+                setFormData({...formData, confirmPassword: confirmPass});
+                validatePasswords(formData.password, confirmPass);
+              }}
+              required
+              disabled={loading}
+              minLength={8}
+              placeholder="Re-enter your password"
             />
           </div>
           <button
             type="submit"
             className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-blue-300"
-            disabled={loading}
+            disabled={loading || !!passwordError}
           >
             {loading ? 'Registering...' : 'Register'}
           </button>
