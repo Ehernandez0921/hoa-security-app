@@ -28,7 +28,6 @@ BEGIN
       name,
       email,
       role,
-      address,
       status,
       created_at,
       updated_at
@@ -37,7 +36,6 @@ BEGIN
       p_name,
       p_email,
       'MEMBER',
-      'No address provided',
       'PENDING',
       NOW(),
       NOW()
@@ -55,7 +53,6 @@ CREATE OR REPLACE FUNCTION create_profile_bypass_rls(
   p_name TEXT,
   p_email TEXT,
   p_role TEXT DEFAULT 'MEMBER',
-  p_address TEXT DEFAULT 'No address provided',
   p_status TEXT DEFAULT 'PENDING'
 )
 RETURNS SETOF profiles
@@ -77,7 +74,6 @@ BEGIN
       name,
       email,
       role,
-      address,
       status,
       created_at,
       updated_at
@@ -86,7 +82,6 @@ BEGIN
       p_name,
       p_email,
       p_role,
-      p_address,
       p_status,
       NOW(),
       NOW()

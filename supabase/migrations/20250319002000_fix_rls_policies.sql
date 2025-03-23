@@ -31,7 +31,6 @@ BEGIN
       name,
       email,
       role,
-      address,
       status,
       created_at,
       updated_at
@@ -40,7 +39,6 @@ BEGIN
       p_name,
       p_email,
       'MEMBER',
-      'No address provided',
       'PENDING',
       NOW(),
       NOW()

@@ -1,11 +1,23 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import { authenticateUser } from "./dataAccess";
-import { getMicrosoftUserRole, syncMicrosoftUser } from "./msalHelpers";
+import { syncOAuthUser } from "./oauthHelpers";
 import { Role } from '@/types/user';
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
+    }),
     {
       id: "microsoft",
       name: "Microsoft",
@@ -74,15 +86,16 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // For Microsoft authentication, ensure the user is properly synced with Supabase
-      if (account?.provider === "microsoft" && user.id && user.email) {
-        console.log('Microsoft sign in with ID:', user.id);
+      // For OAuth providers (Microsoft and Google), ensure the user is properly synced with Supabase
+      if ((account?.provider === "microsoft" || account?.provider === "google") && user.id && user.email) {
+        console.log(`${account.provider} sign in with ID:`, user.id);
         
-        // Use syncMicrosoftUser which now handles proper UUID conversion
-        const supabaseUser = await syncMicrosoftUser({
+        // Use our new syncOAuthUser function that handles both providers
+        const supabaseUser = await syncOAuthUser({
           id: user.id,
-          name: user.name || null,
-          email: user.email
+          name: user.name || '',
+          email: user.email,
+          provider: account.provider as 'microsoft' | 'google'
         });
         
         // Only allow sign-in if we successfully synced with Supabase
@@ -100,52 +113,45 @@ export const authOptions: NextAuthOptions = {
         session.user = {};
       }
       
-      // Always include the ID from the token
-      if (token.sub) {
-        session.user.id = token.sub;
-      }
-      
-      // Handle Microsoft user
-      if (session.user && token.provider === 'microsoft') {
+      // Handle OAuth users (Microsoft or Google)
+      if (session.user && (token.provider === 'microsoft' || token.provider === 'google')) {
         try {
-          // Ensure Microsoft user exists in our database 
-          const microsoftUser = {
+          // Ensure OAuth user exists in our database 
+          const oauthUser = {
             id: token.sub as string,
-            name: session.user.name,
-            email: session.user.email,
+            name: session.user.name || '',
+            email: session.user.email || '',
+            provider: token.provider as 'microsoft' | 'google'
           };
           
           // This function handles UUID conversions and profile creation
-          const userProfile = await syncMicrosoftUser(microsoftUser);
+          const userProfile = await syncOAuthUser(oauthUser);
           
           if (userProfile) {
-            console.log('Profile loaded for Microsoft user:', userProfile.email);
-            // Add role and ID to the session
+            console.log('Profile loaded for OAuth user:', userProfile.email);
+            // Use the Supabase UUID instead of the provider ID
+            session.user.id = userProfile.id; // This is the Supabase UUID
             session.user.role = userProfile.role;
-            session.user.id = userProfile.id; // Use the Supabase ID
           } else {
-            console.log('Using default role for Microsoft user');
-            // Default role if something went wrong
-            session.user.role = 'MEMBER';
+            console.error('Failed to load user profile');
+            // Return an empty session instead of null
+            return { expires: session.expires, user: {} };
           }
         } catch (error) {
-          console.error('Error in session callback for Microsoft user:', error);
-          // Default role if something went wrong
-          session.user.role = 'MEMBER';
+          console.error('Error in session callback for OAuth user:', error);
+          // Return an empty session instead of null
+          return { expires: session.expires, user: {} };
         }
-      } else if (session.user) {
-        // For non-Microsoft users, get the role from the token
+      }
+      
+      // For non-OAuth users, get the role from the token
+      if (!session.user.role) {
         if (token.role) {
           session.user.role = token.role as Role;
         } else {
           // Fallback to default role if token doesn't have role
           console.warn('No role found in token, using default MEMBER role');
           session.user.role = 'MEMBER';
-        }
-        
-        // Ensure ID is set for credentials users too
-        if (token.id) {
-          session.user.id = token.id as string;
         }
       }
       
@@ -169,7 +175,8 @@ export const authOptions: NextAuthOptions = {
         console.log('JWT callback user data:', {
           id: user.id,
           email: user.email,
-          role: user.role
+          role: user.role,
+          provider: token.provider
         });
         
         // Add user data to token
@@ -177,13 +184,19 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = user.role;
+        
+        // For OAuth providers, ensure we use the provider ID
+        if (token.provider === 'microsoft' || token.provider === 'google') {
+          token.sub = user.id; // Use the provider's ID as the subject
+        }
       }
       
       return token;
     }
   },
   pages: {
-    signIn: '/login',
+    signIn: '/routes/login',
+    signOut: '/routes/login'
   },
   session: {
     strategy: "jwt",

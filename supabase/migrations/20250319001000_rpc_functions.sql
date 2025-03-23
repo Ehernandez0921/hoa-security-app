@@ -3,9 +3,8 @@ CREATE OR REPLACE FUNCTION create_profile_bypass_rls(
   p_id UUID,
   p_name TEXT,
   p_email TEXT,
-  p_role TEXT,
-  p_address TEXT,
-  p_status TEXT
+  p_role TEXT DEFAULT 'MEMBER',
+  p_status TEXT DEFAULT 'PENDING'
 ) RETURNS SETOF profiles
 LANGUAGE plpgsql
 SECURITY DEFINER -- This will run with the privileges of the function owner
@@ -23,7 +22,6 @@ BEGIN
       name, 
       email, 
       role, 
-      address, 
       status, 
       created_at, 
       updated_at
@@ -32,7 +30,6 @@ BEGIN
       p_name,
       p_email,
       p_role,
-      p_address,
       p_status,
       NOW(),
       NOW()
@@ -41,6 +38,36 @@ BEGIN
     -- Return inserted profile
     RETURN QUERY SELECT * FROM profiles WHERE id = p_id;
   END IF;
+END;
+$$;
+
+-- Add function to check if a user exists by email
+CREATE OR REPLACE FUNCTION check_user_exists_by_email(
+  p_email TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM profiles WHERE email = p_email
+  );
+END;
+$$;
+
+-- Function to get a user's profile by email
+CREATE OR REPLACE FUNCTION get_user_profile_by_email(
+  p_email TEXT
+)
+RETURNS SETOF profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY SELECT * FROM profiles WHERE email = p_email;
 END;
 $$;
 

@@ -1,7 +1,7 @@
 'use server';
 
 import { Session } from "next-auth";
-import { supabase } from "./supabase";
+import { supabase, supabaseAdmin } from "./supabase";
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/supabase';
@@ -15,29 +15,42 @@ export async function getSupabaseProfile(session: Session | null) {
     return null;
   }
 
+  if (!supabaseAdmin) {
+    console.error('Supabase admin client not available');
+    return null;
+  }
+
   try {
-    // Try to find profile by ID first if available
-    if (session.user.id) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
+    // For OAuth users (Microsoft/Google), first check auth_mappings to get the correct Supabase UUID
+    if (session.user.id && session.user.provider) {
+      console.log(`Looking up auth mapping for ${session.user.provider} user:`, session.user.id);
+      const { data: mapping, error: mappingError } = await supabaseAdmin
+        .from('auth_mappings')
+        .select('supabase_id')
+        .eq('provider_id', session.user.id)
+        .eq('provider', session.user.provider)
         .single();
 
-      if (!error) {
-        return data;
-      }
-      
-      // If the error is a "not found" error, we'll try by email below
-      if (error.code !== 'PGRST116') {
-        console.error('Error fetching Supabase profile by ID:', error);
+      if (!mappingError && mapping) {
+        console.log('Found auth mapping, using Supabase ID:', mapping.supabase_id);
+        const { data, error } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('id', mapping.supabase_id)
+          .single();
+
+        if (!error) {
+          return data;
+        }
+        
+        console.error('Error fetching profile with mapped ID:', error);
       }
     }
     
-    // If ID is not available or profile not found by ID, try using email
+    // If no mapping found or not an OAuth user, try by email
     if (session.user.email) {
       console.log('Trying to find profile by email:', session.user.email);
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('*')
         .eq('email', session.user.email)
@@ -76,6 +89,11 @@ async function createUserProfile(session: Session | null) {
     return null;
   }
 
+  if (!supabaseAdmin) {
+    console.error('Supabase admin client not available');
+    return null;
+  }
+
   try {
     // Create basic profile with default values
     const newProfile = {
@@ -83,13 +101,12 @@ async function createUserProfile(session: Session | null) {
       name: session.user.name || 'Unknown',
       role: session.user.role || 'MEMBER',
       email: session.user.email,
-      address: '',
       status: 'PENDING',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .insert([newProfile])
       .select()
@@ -115,12 +132,16 @@ export async function updateUserProfile(
   session: Session | null, 
   profileData: Partial<{
     name: string;
-    address: string;
   }>
 ) {
   if (!session?.user) {
     console.error('No user in session during updateUserProfile call');
     return { success: false, error: 'No authenticated user' };
+  }
+
+  if (!supabaseAdmin) {
+    console.error('Supabase admin client not available');
+    return { success: false, error: 'Database client not available' };
   }
 
   try {
@@ -131,7 +152,7 @@ export async function updateUserProfile(
     }
     
     console.log(`Updating profile ID ${profile.id} with data:`, profileData);
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .update({
         ...profileData,

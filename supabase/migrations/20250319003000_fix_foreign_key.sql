@@ -31,7 +31,6 @@ BEGIN
       name,
       email,
       role,
-      address,
       status,
       created_at,
       updated_at
@@ -40,7 +39,6 @@ BEGIN
       p_name,
       p_email,
       'SYSTEM_ADMIN',
-      'No address provided',
       'APPROVED',
       NOW(),
       NOW()
@@ -58,7 +56,6 @@ CREATE OR REPLACE FUNCTION create_profile_bypass_rls(
   p_name TEXT,
   p_email TEXT,
   p_role TEXT,
-  p_address TEXT,
   p_status TEXT
 ) RETURNS SETOF profiles
 LANGUAGE plpgsql
@@ -77,7 +74,6 @@ BEGIN
       name, 
       email, 
       role, 
-      address, 
       status, 
       created_at, 
       updated_at
@@ -86,7 +82,6 @@ BEGIN
       p_name,
       p_email,
       p_role,
-      p_address,
       p_status,
       NOW(),
       NOW()
