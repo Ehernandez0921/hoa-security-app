@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { hasRole } from '@/lib/session'
+import { hasRole } from '@/lib/sessionClient'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { User } from '@/app/models/admin/User'
 

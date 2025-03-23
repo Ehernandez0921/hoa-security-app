@@ -2,7 +2,8 @@
 
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
-import { getAuthProvider, getSupabaseProfile } from '@/lib/session'
+import { getAuthProvider } from '@/lib/sessionClient'
+import { getSupabaseProfile } from '@/lib/session'
 
 export default function UserProfileInfo() {
   const { data: session, status } = useSession()

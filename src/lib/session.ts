@@ -79,13 +79,12 @@ async function createUserProfile(session: Session | null) {
   try {
     // Create basic profile with default values
     const newProfile = {
-      // Use actual ID if available, otherwise generate one
       id: session.user.id || crypto.randomUUID(),
       name: session.user.name || 'Unknown',
       role: session.user.role || 'MEMBER',
-      email: session.user.email,  // Store email for future lookups
-      address: '', // Empty address by default
-      status: 'PENDING', // Default status
+      email: session.user.email,
+      address: '',
+      status: 'PENDING',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -111,14 +110,12 @@ async function createUserProfile(session: Session | null) {
 
 /**
  * Updates user profile data in Supabase
- * Works with both authentication methods (Microsoft and Supabase)
  */
 export async function updateUserProfile(
   session: Session | null, 
   profileData: Partial<{
     name: string;
     address: string;
-    // Add other fields as needed
   }>
 ) {
   if (!session?.user) {
@@ -126,21 +123,13 @@ export async function updateUserProfile(
     return { success: false, error: 'No authenticated user' };
   }
 
-  // We need either ID or email to find the user
-  if (!session.user.id && !session.user.email) {
-    console.error('No user ID or email in session during updateUserProfile call');
-    return { success: false, error: 'User cannot be identified' };
-  }
-
   try {
-    // First get the profile (this will create one if needed)
     const profile = await getSupabaseProfile(session);
     
     if (!profile) {
       return { success: false, error: 'Could not retrieve or create profile' };
     }
     
-    // Use the profile ID for the update
     console.log(`Updating profile ID ${profile.id} with data:`, profileData);
     const { data, error } = await supabase
       .from('profiles')
@@ -163,32 +152,6 @@ export async function updateUserProfile(
     console.error('Error in updateUserProfile:', error);
     return { success: false, error: error.message };
   }
-}
-
-/**
- * Checks if the current user has a specific role
- */
-export function hasRole(session: Session | null, role: string | string[]): boolean {
-  if (!session?.user?.role) {
-    return false;
-  }
-
-  if (Array.isArray(role)) {
-    return role.includes(session.user.role);
-  }
-  
-  return session.user.role === role;
-}
-
-/**
- * Gets information about the authentication provider used
- */
-export function getAuthProvider(session: Session | null): 'microsoft' | 'credentials' | null {
-  if (!session?.user?.provider) {
-    return null;
-  }
-  
-  return session.user.provider as 'microsoft' | 'credentials';
 }
 
 export interface SessionUser {

@@ -102,7 +102,11 @@ export async function searchAddresses(searchTerm: string): Promise<AddressSearch
   try {
     const result = await supabaseUtils.searchAddresses(searchTerm);
     return { 
-      addresses: result.addresses || [],
+      addresses: (result.addresses || []).map(addr => ({
+        ...addr,
+        isRegistered: true, // Since it's coming from the database
+        source: 'member' as const // Since it's from our member database
+      })),
       error: result.error || undefined 
     };
   } catch (error) {
