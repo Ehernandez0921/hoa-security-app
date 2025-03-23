@@ -1,6 +1,6 @@
 {
   "name": "security-poc",
-  "version": "0.1.01",
+  "version": "0.2.01",
   "private": true,
   "scripts": {
     "dev": "next dev",
