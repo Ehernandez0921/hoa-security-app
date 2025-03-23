@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import debounce from 'lodash/debounce'
 import { AddressSearchResult } from '@/app/models/guard/Address'
 
@@ -30,9 +30,9 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
   }, [])
 
   // Debounced search function
-  const debouncedSearch = useRef(
-    debounce(async (searchTerm: string) => {
-      if (searchTerm.length < 2) {
+  const debouncedSearch = useCallback(
+    debounce(async (query: string) => {
+      if (!query || query.length < 3) {
         setSuggestions([])
         setIsLoading(false)
         setError(null)
@@ -43,35 +43,31 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
       setError(null)
       
       try {
-        console.log('Sending search request for:', searchTerm)
-        const response = await fetch(`/api/guard/lookup?q=${encodeURIComponent(searchTerm)}`)
-        const result = await response.json()
+        console.log('Fetching addresses for query:', query)
+        const response = await fetch(
+          `/api/guard/lookup?q=${encodeURIComponent(query)}&include_unregistered=true`
+        )
+        console.log('Response status:', response.status)
         
-        console.log('Search response:', result)
-        
-        if (response.ok) {
-          if (result.error) {
-            console.error('Error in search response:', result.error)
-            setError(result.error)
-            setSuggestions([])
-          } else {
-            console.log('Found', result.results?.length || 0, 'addresses')
-            setSuggestions(result.results)
-          }
-        } else {
-          console.error('Error response:', response.status, result.error)
-          setError(result.error || 'Error searching for addresses')
-          setSuggestions([])
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('API error:', errorText)
+          throw new Error(`API error: ${errorText}`)
         }
+
+        const data = await response.json()
+        console.log('Search results:', data)
+
+        setSuggestions(data.results || [])
       } catch (error) {
-        console.error('Error searching for addresses:', error)
-        setError('Failed to search addresses. Please try again.')
-        setSuggestions([])
+        console.error('Error searching addresses:', error)
+        setError(error instanceof Error ? error.message : 'Failed to search addresses')
       } finally {
         setIsLoading(false)
       }
-    }, 300)
-  ).current
+    }, 300),
+    []
+  )
 
   // Trigger search on input change
   useEffect(() => {
@@ -89,15 +85,16 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
   }
 
   // Handle address selection
-  const handleAddressSelect = (result: any) => {
-    onAddressSelect(
-      result.id || '',
-      result.address,
-      result.isRegistered,
-      result.details
-    )
-    setSearchInput('')
+  const handleAddressSelect = (address: AddressSearchResult['addresses'][0]) => {
+    console.log('Address selected:', address)
+    setSearchInput(address.address)
     setSuggestions([])
+    onAddressSelect(
+      address.id || '',
+      address.address,
+      address.isRegistered,
+      address.details
+    )
   }
 
   return (
@@ -111,7 +108,13 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
           type="text"
           className="w-full border p-3 rounded-lg pr-10 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value
+            console.log('Input changed:', value)
+            setSearchInput(value)
+            setError('')
+            debouncedSearch(value)
+          }}
           placeholder="Start typing an address..."
           aria-label="Search for an address"
           autoComplete="off"
@@ -167,7 +170,7 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
       )}
       
       {/* No results message */}
-      {searchInput.length >= 2 && !isLoading && suggestions.length === 0 && !error && (
+      {searchInput.length >= 3 && !isLoading && suggestions.length === 0 && !error && (
         <div className="mt-2 text-sm text-gray-600">
           No addresses found matching your search. Try a different search term.
         </div>
