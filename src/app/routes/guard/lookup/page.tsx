@@ -92,9 +92,9 @@ export default function AddressLookup() {
 
       {/* Address Details and Content */}
       {selectedAddress && !isLoading && (
-        <div className="mt-8">
+        <div className="mt-8 space-y-6">
           {/* Address Details Card */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-2">
               {selectedAddress.address}
             </h2>
@@ -112,7 +112,7 @@ export default function AddressLookup() {
 
           {/* Visitor List - Only for registered addresses */}
           {hasRegisteredAddress && selectedAddress.id && (
-            <div className="mb-6">
+            <div>
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Visitor Access</h3>
               {selectedAddress.allowedVisitors?.length > 0 ? (
                 <VisitorList 
@@ -128,7 +128,7 @@ export default function AddressLookup() {
             </div>
           )}
 
-          {/* Non-Registered Visitor Check-In Section */}
+          {/* Non-Registered Visitor Check-In Section - Always show this section */}
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="bg-orange-500 text-white px-4 py-2 font-medium flex items-center">
               <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -158,12 +158,12 @@ export default function AddressLookup() {
               </div>
             )}
 
-            {/* Non-Registered Visitor Form */}
+            {/* Non-Registered Visitor Form - Always show this */}
             <div className="p-6">
               <NonRegisteredVisitorForm 
                 addressId={hasRegisteredAddress ? selectedAddress.id : null}
-                address={!hasRegisteredAddress ? selectedAddress.address : undefined}
-                addressDetails={!hasRegisteredAddress ? selectedAddress.addressDetails : undefined}
+                address={selectedAddress.address}
+                addressDetails={selectedAddress.addressDetails}
                 onVisitorCheckedIn={handleVisitorCheckedIn}
               />
             </div>

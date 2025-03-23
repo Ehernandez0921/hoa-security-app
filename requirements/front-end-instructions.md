@@ -437,14 +437,25 @@ By following these patterns, components with complex state relationships (like V
         - Logs should be easily filterable by registered vs unregistered status
         - Reports should be able to show patterns of unregistered check-ins
         - Data should be available for future address registration verification
-- When viewing a member's address, the guard should see a complete list of all active visitors:
-    - Named visitors showing first and last name for identification verification
-    - Anonymous visitors with access codes for verification
-    - Clear indication of expiration status and expiration dates
-    - Visual indicators for expired vs. active visitor permissions
-    - Ability to verify access codes entered by visitors
-    - Guards can record visitor check-ins with single-click confirmation
-    - Apartment/unit numbers are clearly displayed for precise visitor verification
+- When viewing a member's address, the guard should see:
+    - Complete address details including:
+        - Full street address
+        - Apartment/unit number (if applicable)
+        - Owner name (for registered addresses)
+    - A list of all active visitors for registered addresses:
+        - Named visitors showing first and last name for identification verification
+        - Anonymous visitors with access codes for verification
+        - Clear indication of expiration status and expiration dates
+        - Visual indicators for expired vs. active visitor permissions
+        - Ability to verify access codes entered by visitors
+        - Guards can record visitor check-ins with single-click confirmation
+        - Apartment/unit numbers are clearly displayed for precise visitor verification
+    - A non-registered visitor check-in section that:
+        - Is always visible for both registered and unregistered addresses
+        - Features an orange header for visual distinction
+        - Shows warning message for unregistered addresses
+        - Allows guards to check in visitors not in the system
+        - Maintains consistent logging for all types of check-ins
 - **Visitor Check-in Logging**:
     - All visitor check-ins must be comprehensively logged in a dedicated `visitor_check_ins` table
     - Each check-in log should record:
