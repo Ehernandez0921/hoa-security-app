@@ -17,6 +17,13 @@ export default function AdminAddressesPage() {
   const [selectedAddressIds, setSelectedAddressIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filteredAddresses, setFilteredAddresses] = useState<MemberAddress[]>([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    addressId: string;
+    status: 'APPROVED' | 'REJECTED';
+    address: string;
+    memberName: string;
+  } | null>(null);
   
   // Apply filters whenever addresses or search query changes
   useEffect(() => {
@@ -107,7 +114,22 @@ export default function AdminAddressesPage() {
     }
   };
   
-  // Handle address approval or rejection
+  // Handle initiating status update (shows confirmation modal)
+  const initiateStatusUpdate = (addressId: string, status: 'APPROVED' | 'REJECTED') => {
+    const address = addresses.find(a => a.id === addressId);
+    if (address) {
+      setPendingAction({
+        addressId,
+        status,
+        address: address.address,
+        // @ts-ignore - we know profiles field exists from the API
+        memberName: address.profiles?.name || 'Unknown Member'
+      });
+      setShowConfirmModal(true);
+    }
+  };
+
+  // Handle actual status update after confirmation
   const handleStatusUpdate = async (addressId: string, status: 'APPROVED' | 'REJECTED') => {
     try {
       const response = await fetch('/api/admin/addresses', {
@@ -131,7 +153,17 @@ export default function AdminAddressesPage() {
     } catch (err) {
       console.error(`Error updating address to ${status}:`, err);
       setError(err instanceof Error ? err.message : `Error updating address to ${status}`);
+    } finally {
+      // Clear the pending action and close modal
+      setPendingAction(null);
+      setShowConfirmModal(false);
     }
+  };
+
+  // Cancel the confirmation
+  const cancelStatusUpdate = () => {
+    setPendingAction(null);
+    setShowConfirmModal(false);
   };
   
   // Format date for display
@@ -192,6 +224,48 @@ export default function AdminAddressesPage() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
           <p>{error}</p>
+        </div>
+      )}
+      
+      {/* Confirmation Modal */}
+      {showConfirmModal && pendingAction && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="text-center">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Confirm {pendingAction.status.toLowerCase() === 'approved' ? 'Approval' : 'Rejection'}
+                </h3>
+                <div className="mt-2 px-7 py-3">
+                  <p className="text-sm text-gray-500">
+                    Are you sure you want to {pendingAction.status.toLowerCase()} this address?
+                  </p>
+                  <div className="mt-4 text-sm text-left">
+                    <p><span className="font-medium">Address:</span> {pendingAction.address}</p>
+                    <p><span className="font-medium">Member:</span> {pendingAction.memberName}</p>
+                  </div>
+                </div>
+                <div className="flex justify-center gap-4 mt-4">
+                  <button
+                    onClick={() => handleStatusUpdate(pendingAction.addressId, pendingAction.status)}
+                    className={`px-4 py-2 text-white font-medium rounded-md ${
+                      pendingAction.status === 'APPROVED'
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : 'bg-red-500 hover:bg-red-600'
+                    }`}
+                  >
+                    Yes, {pendingAction.status.toLowerCase()}
+                  </button>
+                  <button
+                    onClick={cancelStatusUpdate}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium rounded-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       
@@ -355,13 +429,13 @@ export default function AdminAddressesPage() {
                       {address.status === 'PENDING' && (
                         <>
                           <button
-                            onClick={() => handleStatusUpdate(address.id, 'APPROVED')}
+                            onClick={() => initiateStatusUpdate(address.id, 'APPROVED')}
                             className="text-green-600 hover:text-green-900 bg-green-50 px-2 py-1 rounded"
                           >
                             Approve
                           </button>
                           <button
-                            onClick={() => handleStatusUpdate(address.id, 'REJECTED')}
+                            onClick={() => initiateStatusUpdate(address.id, 'REJECTED')}
                             className="text-red-600 hover:text-red-900 bg-red-50 px-2 py-1 rounded"
                           >
                             Reject
@@ -370,7 +444,7 @@ export default function AdminAddressesPage() {
                       )}
                       {address.status === 'APPROVED' && (
                         <button
-                          onClick={() => handleStatusUpdate(address.id, 'REJECTED')}
+                          onClick={() => initiateStatusUpdate(address.id, 'REJECTED')}
                           className="text-red-600 hover:text-red-900 bg-red-50 px-2 py-1 rounded"
                         >
                           Revoke
@@ -378,7 +452,7 @@ export default function AdminAddressesPage() {
                       )}
                       {address.status === 'REJECTED' && (
                         <button
-                          onClick={() => handleStatusUpdate(address.id, 'APPROVED')}
+                          onClick={() => initiateStatusUpdate(address.id, 'APPROVED')}
                           className="text-green-600 hover:text-green-900 bg-green-50 px-2 py-1 rounded"
                         >
                           Approve

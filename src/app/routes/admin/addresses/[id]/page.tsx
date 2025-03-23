@@ -17,6 +17,10 @@ export default function AdminAddressDetailPage() {
   const [address, setAddress] = useState<MemberAddress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    status: 'APPROVED' | 'REJECTED';
+  } | null>(null);
   
   // Check if user is authenticated and has required role
   useEffect(() => {
@@ -62,7 +66,13 @@ export default function AdminAddressDetailPage() {
     }
   };
   
-  // Handle status update
+  // Handle initiating status update (shows confirmation modal)
+  const initiateStatusUpdate = (status: 'APPROVED' | 'REJECTED') => {
+    setPendingAction({ status });
+    setShowConfirmModal(true);
+  };
+  
+  // Handle actual status update after confirmation
   const handleStatusUpdate = async (status: 'APPROVED' | 'REJECTED') => {
     try {
       const response = await fetch('/api/admin/addresses', {
@@ -86,7 +96,17 @@ export default function AdminAddressDetailPage() {
     } catch (err) {
       console.error(`Error updating address to ${status}:`, err);
       setError(err instanceof Error ? err.message : `Error updating address to ${status}`);
+    } finally {
+      // Clear the pending action and close modal
+      setPendingAction(null);
+      setShowConfirmModal(false);
     }
+  };
+  
+  // Cancel the confirmation
+  const cancelStatusUpdate = () => {
+    setPendingAction(null);
+    setShowConfirmModal(false);
   };
   
   // Format date for display
@@ -178,6 +198,55 @@ export default function AdminAddressDetailPage() {
         </button>
       </div>
       
+      {/* Confirmation Modal */}
+      {showConfirmModal && pendingAction && address && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="text-center">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Confirm {pendingAction.status.toLowerCase() === 'approved' ? 'Approval' : 'Rejection'}
+                </h3>
+                <div className="mt-2 px-7 py-3">
+                  <p className="text-sm text-gray-500">
+                    Are you sure you want to {pendingAction.status.toLowerCase()} this address?
+                  </p>
+                  <div className="mt-4 text-sm text-left">
+                    <p><span className="font-medium">Address:</span> {address.address}</p>
+                    {address.apartment_number && (
+                      <p><span className="font-medium">Apt/Unit:</span> {address.apartment_number}</p>
+                    )}
+                    <p><span className="font-medium">Owner:</span> {address.owner_name}</p>
+                    <p><span className="font-medium">Member:</span> {
+                      // @ts-ignore - we know profiles field exists from the API
+                      address.profiles?.name || 'Unknown Member'
+                    }</p>
+                  </div>
+                </div>
+                <div className="flex justify-center gap-4 mt-4">
+                  <button
+                    onClick={() => handleStatusUpdate(pendingAction.status)}
+                    className={`px-4 py-2 text-white font-medium rounded-md ${
+                      pendingAction.status === 'APPROVED'
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : 'bg-red-500 hover:bg-red-600'
+                    }`}
+                  >
+                    Yes, {pendingAction.status.toLowerCase()}
+                  </button>
+                  <button
+                    onClick={cancelStatusUpdate}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium rounded-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Basic Address Information */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-6">
         <div className="p-4 border-b border-gray-200">
@@ -234,13 +303,13 @@ export default function AdminAddressDetailPage() {
           {address.status === 'PENDING' && (
             <div className="mt-4 flex space-x-3">
               <button
-                onClick={() => handleStatusUpdate('APPROVED')}
+                onClick={() => initiateStatusUpdate('APPROVED')}
                 className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
               >
                 Approve Address
               </button>
               <button
-                onClick={() => handleStatusUpdate('REJECTED')}
+                onClick={() => initiateStatusUpdate('REJECTED')}
                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
               >
                 Reject Address
