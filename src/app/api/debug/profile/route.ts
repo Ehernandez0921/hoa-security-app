@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseProfile } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     // Get session info

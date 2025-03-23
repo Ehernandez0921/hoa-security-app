@@ -3,6 +3,8 @@ import { getAddressDetailsById } from '@/lib/dataAccess'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: Request) {
   try {
     // Verify that the user is authenticated and has the appropriate role

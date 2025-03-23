@@ -114,6 +114,8 @@ async function validateAddress(addressText: string): Promise<boolean> {
   }
 }
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/member/addresses - Retrieve all addresses for the authenticated member
 export async function GET(request: NextRequest) {
   try {

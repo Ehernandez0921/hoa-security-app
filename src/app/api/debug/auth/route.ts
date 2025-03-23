@@ -22,6 +22,8 @@ interface AuthDebugResponse {
   };
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     // Get the current session

@@ -9,6 +9,8 @@ import {
 } from '@/lib/visitorAccess';
 import { VisitorCreateParams, VisitorUpdateParams, VisitorFilterParams } from '@/app/models/member/Visitor';
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/member/visitors - Retrieve all visitors for the authenticated member
 export async function GET(request: NextRequest) {
   try {

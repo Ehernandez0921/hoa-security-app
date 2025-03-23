@@ -3,6 +3,8 @@ import { searchAddresses } from '@/lib/dataAccess'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: Request) {
   try {
     console.log('Address search API called');

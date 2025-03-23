@@ -4,6 +4,8 @@ import { VerifyAccessCodeParams } from '@/app/models/guard/Address'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   try {
     // Verify that the user is authenticated and has the appropriate role

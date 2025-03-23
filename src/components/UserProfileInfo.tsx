@@ -2,7 +2,6 @@
 
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
-import { getAuthProvider } from '@/lib/sessionClient'
 import { getSupabaseProfile } from '@/lib/session'
 
 export default function UserProfileInfo() {
@@ -83,7 +82,10 @@ export default function UserProfileInfo() {
     )
   }
 
-  const authProvider = getAuthProvider(session)
+  const authProvider = session?.user?.provider || 
+    (session?.user?.email?.includes('@microsoft.com') ? 'microsoft' :
+     session?.user?.email?.includes('@gmail.com') ? 'google' : 
+     'credentials')
 
   console.log('Rendering profile:', profile)
 

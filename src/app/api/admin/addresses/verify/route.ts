@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { AddressVerificationDetails } from '@/app/models/member/Address';
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/admin/addresses/verify?id={addressId} - Get detailed validation info for an address
 export async function GET(request: NextRequest) {
   try {

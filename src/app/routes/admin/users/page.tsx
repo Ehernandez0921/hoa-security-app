@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { hasRole } from '@/lib/sessionClient'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { User } from '@/app/models/admin/User'
 
@@ -49,10 +48,10 @@ export default function AdminUsersPage() {
   // Security: Redirect non-admin users away from this page
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (status === 'authenticated' && !hasRole(session, 'SYSTEM_ADMIN')) {
+      router.push('/routes/login')
+    } else if (status === 'authenticated' && session?.user?.role !== 'SYSTEM_ADMIN') {
       router.push('/')
-    } else if (status === 'authenticated' && hasRole(session, 'SYSTEM_ADMIN')) {
+    } else if (status === 'authenticated' && session?.user?.role === 'SYSTEM_ADMIN') {
       fetchUsers()
     }
   }, [status, session, router])
@@ -171,7 +170,7 @@ export default function AdminUsersPage() {
   }
 
   // Only show content to SYSTEM_ADMIN users
-  if (status === 'authenticated' && hasRole(session, 'SYSTEM_ADMIN')) {
+  if (status === 'authenticated' && session?.user?.role === 'SYSTEM_ADMIN') {
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">User Management</h1>

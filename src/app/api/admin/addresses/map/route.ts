@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/admin/addresses/map?id={addressId} - Get map data for an address
 export async function GET(request: NextRequest) {
   try {
