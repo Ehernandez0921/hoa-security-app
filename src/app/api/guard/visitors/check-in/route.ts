@@ -28,23 +28,26 @@ export async function POST(req: Request) {
     const data = await req.json()
     
     // Validate request data
-    if (!data.visitor_id) {
-      return NextResponse.json(
-        { error: 'Visitor ID is required' },
-        { status: 400 }
-      )
-    }
-    
     if (!data.address_id) {
       return NextResponse.json(
         { error: 'Address ID is required' },
         { status: 400 }
       )
     }
+
+    // Check if this is a registered or non-registered visitor check-in
+    if (!data.visitor_id && (!data.first_name || !data.last_name)) {
+      return NextResponse.json(
+        { error: 'Either visitor ID or first and last name are required' },
+        { status: 400 }
+      )
+    }
     
     // Prepare check-in parameters
     const checkInParams: VisitorCheckInParams = {
-      visitor_id: data.visitor_id,
+      visitor_id: data.visitor_id, // Optional for non-registered visitors
+      first_name: data.first_name, // Required for non-registered visitors
+      last_name: data.last_name,   // Required for non-registered visitors
       checked_in_by: session.user.id,
       check_in_time: new Date().toISOString(),
       address_id: data.address_id,

@@ -1,6 +1,7 @@
 import * as supabaseUtils from './supabase';
 import { Profile, AllowedVisitor } from './supabase';
 import { AddressSearchResult, VerifyAccessCodeParams, VisitorCheckInParams, AccessCodeVerificationResult } from '@/app/models/guard/Address';
+import { supabaseAdmin } from '@/lib/supabase'
 
 // This file provides a unified interface for data access to Supabase
 
@@ -143,14 +144,90 @@ export async function verifyAccessCode(params: VerifyAccessCodeParams): Promise<
 /**
  * Check in a visitor (record access)
  */
-export async function checkInVisitor(params: VisitorCheckInParams): Promise<{ success: boolean; error?: string; checkIn?: any }> {
+export async function checkInVisitor({ 
+  visitor_id, 
+  first_name,
+  last_name,
+  checked_in_by, 
+  check_in_time,
+  address_id,
+  entry_method = 'NAME_VERIFICATION',
+  notes
+}: { 
+  visitor_id?: string; 
+  first_name?: string;
+  last_name?: string;
+  checked_in_by: string; 
+  check_in_time: string;
+  address_id: string;
+  entry_method?: 'NAME_VERIFICATION' | 'ACCESS_CODE';
+  notes?: string;
+}) {
+  console.log('Checking in visitor:', visitor_id || `${first_name} ${last_name}`); // Add logging for debugging
+  
+  // Make sure we have the admin client
+  if (!supabaseAdmin) {
+    console.error('Admin client not available for visitor check-in');
+    return {
+      success: false,
+      error: 'Admin access required for this operation'
+    };
+  }
+  
   try {
-    return await supabaseUtils.checkInVisitor(params);
+    // If this is a registered visitor, update their last_used timestamp
+    if (visitor_id) {
+      const { error: visitorError } = await supabaseAdmin
+        .from('allowed_visitors')
+        .update({
+          last_used: check_in_time
+        })
+        .eq('id', visitor_id);
+      
+      if (visitorError) {
+        console.error('Error updating visitor last_used timestamp:', visitorError);
+        return {
+          success: false,
+          error: visitorError.message
+        };
+      }
+    }
+    
+    // Insert record into visitor_check_ins table for full audit trail
+    const { data: checkInData, error: checkInError } = await supabaseAdmin
+      .from('visitor_check_ins')
+      .insert({
+        visitor_id,
+        first_name,
+        last_name,
+        address_id,
+        checked_in_by,
+        check_in_time,
+        entry_method,
+        notes
+      })
+      .select('*')
+      .single();
+    
+    if (checkInError) {
+      console.error('Error logging visitor check-in:', checkInError);
+      return {
+        success: false,
+        error: checkInError.message
+      };
+    }
+    
+    console.log('Successfully checked in visitor:', visitor_id || `${first_name} ${last_name}`, 'Check-in ID:', checkInData.id);
+    
+    return {
+      success: true,
+      checkIn: checkInData
+    };
   } catch (error) {
     console.error('Error in checkInVisitor:', error);
-    return { 
-      success: false, 
-      error: 'Failed to check in visitor'
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
     };
   }
 }

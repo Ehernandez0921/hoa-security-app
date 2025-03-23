@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { VisitorInfo } from '@/app/models/guard/Address'
+import NonRegisteredVisitorForm from './NonRegisteredVisitorForm'
 
 interface VisitorListProps {
   visitors: VisitorInfo[]
   addressId: string
-  onVisitorCheckedIn: (visitorId: string) => void
+  onVisitorCheckedIn: (visitorId?: string) => void
 }
 
 export default function VisitorList({ visitors, addressId, onVisitorCheckedIn }: VisitorListProps) {
@@ -279,6 +280,39 @@ export default function VisitorList({ visitors, addressId, onVisitorCheckedIn }:
             {verificationResult.message}
           </div>
         )}
+      </div>
+
+      {/* Warning Section */}
+      <div className="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-400">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-orange-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-orange-800">
+              Non-Registered Visitor Check-In
+            </h3>
+            <div className="mt-2 text-sm text-orange-700">
+              <p>This option should only be used when the visitor is not in the registered visitors list. All non-registered check-ins are logged for security purposes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Non-Registered Visitor Form - Now at the bottom with warning colors */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-orange-500 text-white px-4 py-2 font-medium flex items-center">
+          <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          Non-Registered Visitor Check-In
+        </div>
+        <NonRegisteredVisitorForm 
+          addressId={addressId}
+          onVisitorCheckedIn={() => onVisitorCheckedIn()}
+        />
       </div>
     </div>
   )

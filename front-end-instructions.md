@@ -26,4 +26,22 @@
         - Member name
       - Color-coded action buttons (green for approve, red for reject)
       - Requires explicit confirmation before proceeding
-      - Prevents accidental status changes 
+      - Prevents accidental status changes
+
+## Security Guard:
+- [SecurityGuard] should be able to log visitor check-ins through the visitor management interface
+  - For registered visitors (in allowed_visitors list):
+    - Verify visitor against the allowed_visitors list using access code or name
+    - Record check-in with associated address and member information
+  - For non-registered visitors:
+    - Ability to log check-ins by capturing:
+      - First name
+      - Last name
+      - Address being visited
+      - Entry method (NAME_VERIFICATION)
+      - Optional notes field for additional information
+    - All check-ins are recorded in the visitor_check_ins table for audit purposes
+    - System maintains a complete log of all entries, regardless of visitor registration status
+  - View recent check-in history (last 24 hours)
+  - Search and filter check-in records
+  - Access to approved addresses for verification purposes 

@@ -34,7 +34,9 @@ export interface AddressSearchResult {
 }
 
 export interface VisitorCheckInParams {
-  visitor_id: string;
+  visitor_id?: string;
+  first_name?: string;
+  last_name?: string;
   checked_in_by: string;
   check_in_time: string;
   address_id: string;
@@ -46,7 +48,9 @@ export type EntryMethodType = 'NAME_VERIFICATION' | 'ACCESS_CODE';
 
 export interface VisitorCheckIn {
   id: string;
-  visitor_id: string;
+  visitor_id?: string;
+  first_name?: string;
+  last_name?: string;
   address_id: string;
   checked_in_by: string;
   check_in_time: string;
