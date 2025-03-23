@@ -123,6 +123,62 @@ BEGIN
   END IF;
 END $$;
 
+-- Add some test visitor check-ins
+INSERT INTO public.visitor_check_ins (
+  visitor_id,
+  first_name,
+  last_name,
+  checked_in_by,
+  check_in_time,
+  entry_method,
+  notes,
+  address_id,
+  is_registered_address,
+  created_at
+)
+SELECT
+  av.id as visitor_id,
+  av.first_name,
+  av.last_name,
+  p.id as checked_in_by,
+  NOW() - interval '1 day' as check_in_time,
+  'NAME_VERIFICATION'::entry_method_type as entry_method,
+  'Test check-in' as notes,
+  av.address_id,
+  true as is_registered_address,
+  NOW() - interval '1 day' as created_at
+FROM allowed_visitors av
+CROSS JOIN (
+  SELECT id FROM profiles WHERE role = 'SECURITY_GUARD' LIMIT 1
+) p
+LIMIT 2;
+
+-- Add an unregistered visitor check-in
+INSERT INTO public.visitor_check_ins (
+  first_name,
+  last_name,
+  checked_in_by,
+  check_in_time,
+  entry_method,
+  notes,
+  unregistered_address,
+  is_registered_address,
+  created_at
+)
+SELECT
+  'John' as first_name,
+  'Doe' as last_name,
+  p.id as checked_in_by,
+  NOW() as check_in_time,
+  'NAME_VERIFICATION'::entry_method_type as entry_method,
+  'Unregistered visitor' as notes,
+  '456 Oak St' as unregistered_address,
+  false as is_registered_address,
+  NOW() as created_at
+FROM (
+  SELECT id FROM profiles WHERE role = 'SECURITY_GUARD' LIMIT 1
+) p;
+
 -- Log completion of migration
 DO $$
 BEGIN

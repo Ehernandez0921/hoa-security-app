@@ -246,7 +246,7 @@ export default function AdminAddressesPage() {
                   </div>
                 </div>
                 <div className="flex justify-center gap-4 mt-4">
-                  <button
+            <button
                     onClick={() => handleStatusUpdate(pendingAction.addressId, pendingAction.status)}
                     className={`px-4 py-2 text-white font-medium rounded-md ${
                       pendingAction.status === 'APPROVED'
@@ -255,13 +255,13 @@ export default function AdminAddressesPage() {
                     }`}
                   >
                     Yes, {pendingAction.status.toLowerCase()}
-                  </button>
-                  <button
+            </button>
+            <button
                     onClick={cancelStatusUpdate}
                     className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium rounded-md"
                   >
                     Cancel
-                  </button>
+            </button>
                 </div>
               </div>
             </div>

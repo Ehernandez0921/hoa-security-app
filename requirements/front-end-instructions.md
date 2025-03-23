@@ -381,6 +381,92 @@ By following these patterns, components with complex state relationships (like V
   - Setting verification status flags for addresses (verified, uncertain, invalid)
   - Managing exceptions for special address cases
 
+- **Reporting and Analytics**:
+  - [SystemAdmin] has access to comprehensive reporting tools at `/routes/admin/reports`
+  - **Standard Reports Available**:
+    1. **Visitor Activity Report**:
+       - All visitor check-ins within a date range
+       - Filterable by registered/unregistered visitors
+       - Check-in timestamps and methods (access code vs. name verification)
+       - Guard who performed the check-in
+       - Address information (registered or unregistered)
+       - Export format includes all visitor and address details
+       
+    2. **Address Verification Report**:
+       - List of all addresses with verification status
+       - Verification dates and verifying admin
+       - Verification notes and special cases
+       - Address components and apartment numbers
+       - Owner information and member details
+       - Status history and modification tracking
+       
+    3. **Security Guard Activity Report**:
+       - Check-ins performed by each guard
+       - Shift patterns and activity times
+       - Types of check-ins handled (registered vs. unregistered)
+       - Number of visitors processed
+       - Average processing time per check-in
+       
+    4. **Member Activity Report**:
+       - Active/inactive addresses per member
+       - Number of visitors authorized
+       - Access code usage statistics
+       - Address verification status
+       - Member status changes history
+       
+    5. **Unregistered Access Report**:
+       - All unregistered address check-ins
+       - Frequency of visits to unregistered addresses
+       - Common unregistered addresses
+       - Guard notes and observations
+       - Patterns in unregistered visitor access
+       
+    6. **Access Code Usage Report**:
+       - Active vs. expired access codes
+       - Usage frequency and patterns
+       - Last used timestamps
+       - Duration of code validity
+       - Number of uses per code
+       
+    7. **System Usage Analytics**:
+       - Peak check-in times
+       - Busiest days/hours
+       - Most active addresses
+       - Guard workload distribution
+       - System performance metrics
+       
+  - **Report Features**:
+    - Date range selection with presets (today, this week, this month, custom)
+    - Multiple export formats (Excel, CSV, PDF)
+    - Customizable columns and filters
+    - Saved report configurations
+    - Scheduled report generation and email delivery
+    - Interactive data visualizations and charts
+    - Drill-down capabilities for detailed analysis
+    - Batch export of multiple reports
+    
+  - **Data Security**:
+    - Reports are access-controlled by admin role
+    - Sensitive data is properly redacted in exports
+    - Audit trail of report generation and access
+    - Data retention policies applied to exports
+    - Encrypted report delivery
+    
+  - **Custom Report Builder**:
+    - Drag-and-drop interface for creating custom reports
+    - Selection of available data fields
+    - Custom filtering and sorting options
+    - Saved custom report templates
+    - Shareable report configurations
+    - Advanced aggregation options
+    
+  - **Report API Endpoints**:
+    - `/api/admin/reports/generate` - Generate reports with specified parameters
+    - `/api/admin/reports/schedule` - Schedule recurring report generation
+    - `/api/admin/reports/templates` - Manage report templates
+    - `/api/admin/reports/export` - Export reports in various formats
+    - `/api/admin/reports/custom` - Create and manage custom reports
+
 ## Security Guard Validation:
 - [Security Guard] should be able to look up the [Member] by address and see the list of allowed people for that address.
     - The address lookup should be autocomplete and search should not be required to be pressed and should auto show results as parts of the address are typed.

@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { hasRole } from '@/lib/session'
 import Link from 'next/link'
 
 export default function AdminIndexPage() {
@@ -14,7 +13,7 @@ export default function AdminIndexPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login')
-    } else if (status === 'authenticated' && !hasRole(session, 'SYSTEM_ADMIN')) {
+    } else if (status === 'authenticated' && session?.user?.role !== 'SYSTEM_ADMIN') {
       router.push('/')
     }
   }, [status, session, router])
@@ -30,7 +29,7 @@ export default function AdminIndexPage() {
   }
 
   // Only show to SYSTEM_ADMIN users
-  if (status === 'authenticated' && hasRole(session, 'SYSTEM_ADMIN')) {
+  if (status === 'authenticated' && session?.user?.role === 'SYSTEM_ADMIN') {
     return (
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
@@ -46,12 +45,14 @@ export default function AdminIndexPage() {
             <p>Review, verify and approve member addresses</p>
           </Link>
           
-          {/* Add more admin panels as needed */}
+          <Link href="/routes/admin/reports" className="p-6 bg-white shadow rounded hover:shadow-md transition-shadow">
+            <h2 className="text-xl font-semibold mb-2">Reports & Analytics</h2>
+            <p>Generate and download comprehensive system reports</p>
+          </Link>
         </div>
       </div>
     )
   }
 
-  // Fallback
-  return null
+  return null;
 } 
