@@ -1,5 +1,8 @@
 import { Session } from "next-auth";
 import { supabase } from "./supabase";
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { Database } from '@/types/supabase';
 
 /**
  * Gets the Supabase profile for the currently authenticated user
@@ -184,4 +187,53 @@ export function getAuthProvider(session: Session | null): 'microsoft' | 'credent
   }
   
   return session.user.provider as 'microsoft' | 'credentials';
+}
+
+export interface SessionUser {
+  id: string;
+  email: string;
+  role: 'MEMBER' | 'SECURITY_GUARD' | 'SYSTEM_ADMIN';
+}
+
+export interface CustomSession {
+  user: SessionUser | null;
+}
+
+export async function getSession(): Promise<CustomSession | null> {
+  try {
+    const supabase = createServerComponentClient<Database>({ cookies });
+    
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error || !session?.user) {
+      console.error('Session error:', error);
+      return null;
+    }
+
+    // Get the user's profile to include role information
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile) {
+      console.error('Profile not found for user:', session.user.id);
+      return null;
+    }
+
+    return {
+      user: {
+        id: session.user.id,
+        email: session.user.email || '',
+        role: profile.role as SessionUser['role'],
+      },
+    };
+  } catch (error) {
+    console.error('Error getting session:', error);
+    return null;
+  }
 } 

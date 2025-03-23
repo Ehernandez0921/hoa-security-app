@@ -72,6 +72,11 @@ This document outlines the requirements for building a web application a [securi
         unregistered_address: text (full address for non-member locations)
         address_details: jsonb (stores detailed address components for unregistered addresses)
         is_registered_address: boolean (indicates if this was a registered member address)
+        address_source: text (indicates source of address data: 'member' or 'openstreetmap')
+        original_suggestion: jsonb (stores original OpenStreetMap suggestion if modified)
+        street_number: text (street number as entered by guard)
+        street_name: text (street name as entered by guard)
+        modified_address: boolean (indicates if guard modified the suggested address)
         
     member_addresses:
         id: uuid (primary key)
@@ -403,9 +408,35 @@ By following these patterns, components with complex state relationships (like V
             - System displays the non-registered visitor check-in form
             - Form is styled with orange theme to indicate non-standard process
             - Clear warning message explains this is for unregistered addresses
-            - Requires additional information capture for visitor logging
-            - Check-ins are properly logged with address details
+            - Requires additional information capture for visitor logging:
+                - First Name (required)
+                - Last Name (required)
+                - Street Number (required)
+                - Street Name (required, auto-populated from selection)
+                - Notes (optional)
+            - Address validation is only required through dropdown selection
+            - No additional address validation needed once selected from dropdown
+            - Check-ins are properly logged with address details and unregistered status
             - Address information is preserved for future reference
+            - Check-in logs clearly indicate unregistered status with:
+                - Visual indicator (orange theme)
+                - "UNREGISTERED" flag in the log entry
+                - Timestamp of unregistered check-in
+                - Guard ID who performed the check-in
+                - Complete address details as entered
+    - **Unregistered Address Logging**:
+        - Each unregistered check-in must be clearly identifiable in logs
+        - Log entries include:
+            - UNREGISTERED status flag
+            - Full address components (number, street, city, state)
+            - Source of address (OpenStreetMap API)
+            - Guard who performed check-in
+            - Date and time of check-in
+            - Visitor information (first name, last name)
+            - Any additional notes
+        - Logs should be easily filterable by registered vs unregistered status
+        - Reports should be able to show patterns of unregistered check-ins
+        - Data should be available for future address registration verification
 - When viewing a member's address, the guard should see a complete list of all active visitors:
     - Named visitors showing first and last name for identification verification
     - Anonymous visitors with access codes for verification
@@ -925,6 +956,8 @@ By following these patterns, components with complex state relationships (like V
                   id: string;
                   ownerName: string;
                 };
+                suggestedNumber?: string; // For unregistered addresses
+                suggestedStreet?: string; // For unregistered addresses
               }>;
               totalCount: number;
               hasMoreResults: boolean;
@@ -936,8 +969,8 @@ By following these patterns, components with complex state relationships (like V
             interface UnregisteredCheckInRequest {
               address: string;
               addressDetails: {
-                houseNumber: string;
-                street: string;
+                houseNumber: string;  // Can be different from OpenStreetMap suggestion
+                street: string;       // Can be different from OpenStreetMap suggestion
                 city: string;
                 state: string;
                 postalCode: string;
@@ -946,6 +979,11 @@ By following these patterns, components with complex state relationships (like V
                 firstName: string;
                 lastName: string;
                 notes?: string;
+              };
+              source: 'openstreetmap';
+              originalSuggestion?: {
+                houseNumber: string;
+                street: string;
               };
             }
             ```
@@ -958,3 +996,34 @@ By following these patterns, components with complex state relationships (like V
         - Records entry method and verification details
         - Includes guard identification and timestamp
         - Optional notes field for additional information
+        - Response includes unregistered status flag:
+            ```typescript
+            interface CheckInResponse {
+              success: boolean;
+              checkIn: {
+                id: string;
+                isRegisteredAddress: boolean;
+                checkInTime: string;
+                visitor: {
+                  firstName: string;
+                  lastName: string;
+                };
+                address: {
+                  full: string;
+                  components: {
+                    number: string;
+                    street: string;
+                    city: string;
+                    state: string;
+                    postalCode: string;
+                  };
+                  isRegistered: boolean;
+                };
+                guard: {
+                  id: string;
+                  name: string;
+                };
+                notes?: string;
+              };
+            }
+            ```

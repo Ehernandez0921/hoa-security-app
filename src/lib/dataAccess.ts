@@ -152,16 +152,28 @@ export async function checkInVisitor({
   check_in_time,
   address_id,
   entry_method = 'NAME_VERIFICATION',
-  notes
+  notes,
+  unregistered_address,
+  address_details,
+  is_registered_address = true,
+  address_source,
+  street_number,
+  street_name
 }: { 
   visitor_id?: string; 
   first_name?: string;
   last_name?: string;
   checked_in_by: string; 
   check_in_time: string;
-  address_id: string;
+  address_id: string | null;
   entry_method?: 'NAME_VERIFICATION' | 'ACCESS_CODE';
   notes?: string;
+  unregistered_address?: string;
+  address_details?: any;
+  is_registered_address?: boolean;
+  address_source?: string;
+  street_number?: string;
+  street_name?: string;
 }) {
   console.log('Checking in visitor:', visitor_id || `${first_name} ${last_name}`); // Add logging for debugging
   
@@ -204,7 +216,13 @@ export async function checkInVisitor({
         checked_in_by,
         check_in_time,
         entry_method,
-        notes
+        notes,
+        unregistered_address,
+        address_details,
+        is_registered_address,
+        address_source,
+        street_number,
+        street_name
       })
       .select('*')
       .single();

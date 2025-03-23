@@ -15,20 +15,43 @@ export interface VisitorInfo {
 }
 
 export interface AddressInfo {
-  id: string;
+  id: string | null;
   address: string;
   apartment_number?: string;
   owner_name: string;
   member_id: string;
   allowedVisitors: VisitorInfo[];
+  addressDetails?: {
+    houseNumber: string;
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  isRegistered?: boolean;
 }
 
 export interface AddressSearchResult {
   addresses: {
-    id: string;
+    id?: string;
     address: string;
     apartment_number?: string;
-    owner_name: string;
+    owner_name?: string;
+    isRegistered: boolean;
+    source: 'member' | 'openstreetmap';
+    details?: {
+      houseNumber: string;
+      street: string;
+      city: string;
+      state: string;
+      postalCode: string;
+    };
+    memberInfo?: {
+      id: string;
+      ownerName: string;
+    };
+    suggestedNumber?: string;
+    suggestedStreet?: string;
   }[];
   error?: string;
 }
@@ -39,9 +62,11 @@ export interface VisitorCheckInParams {
   last_name?: string;
   checked_in_by: string;
   check_in_time: string;
-  address_id: string;
+  address_id: string | null;
   entry_method: EntryMethodType;
   notes?: string;
+  unregistered_address?: string;
+  is_registered_address?: boolean;
 }
 
 export type EntryMethodType = 'NAME_VERIFICATION' | 'ACCESS_CODE';

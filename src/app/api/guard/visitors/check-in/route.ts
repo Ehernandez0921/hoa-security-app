@@ -27,8 +27,8 @@ export async function POST(req: Request) {
     // Parse the request body
     const data = await req.json()
     
-    // Validate request data
-    if (!data.address_id) {
+    // Validate request data - allow null address_id for unregistered addresses
+    if (data.address_id === undefined) {
       return NextResponse.json(
         { error: 'Address ID is required' },
         { status: 400 }
@@ -43,6 +43,16 @@ export async function POST(req: Request) {
       )
     }
     
+    // For unregistered addresses, require address string
+    if (data.address_id === null) {
+      if (!data.unregistered_address) {
+        return NextResponse.json(
+          { error: 'Unregistered address requires an address string' },
+          { status: 400 }
+        )
+      }
+    }
+    
     // Prepare check-in parameters
     const checkInParams: VisitorCheckInParams = {
       visitor_id: data.visitor_id, // Optional for non-registered visitors
@@ -52,7 +62,12 @@ export async function POST(req: Request) {
       check_in_time: new Date().toISOString(),
       address_id: data.address_id,
       entry_method: data.entry_method || 'NAME_VERIFICATION',
-      notes: data.notes
+      notes: data.notes,
+      // Include unregistered address information if provided
+      ...(data.address_id === null && {
+        unregistered_address: data.unregistered_address,
+        is_registered_address: false
+      })
     }
     
     // Process check-in

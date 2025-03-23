@@ -5,7 +5,7 @@ import debounce from 'lodash/debounce'
 import { AddressSearchResult } from '@/app/models/guard/Address'
 
 interface AddressSearchProps {
-  onAddressSelect: (addressId: string, address: string) => void
+  onAddressSelect: (addressId: string, address: string, hasRegisteredAddress: boolean, addressDetails?: any) => void
 }
 
 export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
@@ -44,7 +44,7 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
       
       try {
         console.log('Sending search request for:', searchTerm)
-        const response = await fetch(`/api/guard/addresses/search?q=${encodeURIComponent(searchTerm)}`)
+        const response = await fetch(`/api/guard/lookup?q=${encodeURIComponent(searchTerm)}`)
         const result = await response.json()
         
         console.log('Search response:', result)
@@ -55,8 +55,8 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
             setError(result.error)
             setSuggestions([])
           } else {
-            console.log('Found', result.addresses?.length || 0, 'addresses')
-            setSuggestions(result.addresses)
+            console.log('Found', result.results?.length || 0, 'addresses')
+            setSuggestions(result.results)
           }
         } else {
           console.error('Error response:', response.status, result.error)
@@ -82,10 +82,22 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
     }
   }, [searchInput, debouncedSearch])
 
-  const handleSelectAddress = (addressId: string, address: string) => {
+  const handleSelectAddress = (addressId: string, address: string, isRegistered: boolean) => {
     setSearchInput(address)
     setSuggestions([])
-    onAddressSelect(addressId, address)
+    onAddressSelect(addressId, address, isRegistered)
+  }
+
+  // Handle address selection
+  const handleAddressSelect = (result: any) => {
+    onAddressSelect(
+      result.id || '',
+      result.address,
+      result.isRegistered,
+      result.details
+    )
+    setSearchInput('')
+    setSuggestions([])
   }
 
   return (
@@ -127,9 +139,9 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
         >
           {suggestions.map((address) => (
             <div
-              key={address.id}
+              key={address.id || address.address}
               className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
-              onClick={() => handleSelectAddress(address.id, address.address)}
+              onClick={() => handleAddressSelect(address)}
             >
               <div className="font-medium text-gray-800">
                 {address.address}
@@ -138,10 +150,17 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
                     Apt {address.apartment_number}
                   </span>
                 )}
+                {!address.isRegistered && (
+                  <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-800 text-xs rounded">
+                    Unregistered
+                  </span>
+                )}
               </div>
-              <div className="text-sm text-gray-500">
-                Owner: {address.owner_name}
-              </div>
+              {address.owner_name && (
+                <div className="text-sm text-gray-500">
+                  Owner: {address.owner_name}
+                </div>
+              )}
             </div>
           ))}
         </div>

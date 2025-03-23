@@ -3,11 +3,16 @@
 import { useState } from 'react'
 
 interface NonRegisteredVisitorFormProps {
-  addressId: string
-  onVisitorCheckedIn: () => void
+  addressId: string | null;
+  address?: string;  // Full address string from search
+  onVisitorCheckedIn: () => void;
 }
 
-export default function NonRegisteredVisitorForm({ addressId, onVisitorCheckedIn }: NonRegisteredVisitorFormProps) {
+export default function NonRegisteredVisitorForm({ 
+  addressId, 
+  address,
+  onVisitorCheckedIn 
+}: NonRegisteredVisitorFormProps) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [notes, setNotes] = useState('')
@@ -18,6 +23,12 @@ export default function NonRegisteredVisitorForm({ addressId, onVisitorCheckedIn
     e.preventDefault()
     setIsSubmitting(true)
     setError(null)
+
+    if (!address) {
+      setError('Address information is required')
+      setIsSubmitting(false)
+      return
+    }
 
     try {
       const response = await fetch('/api/guard/visitors/check-in', {
@@ -30,7 +41,10 @@ export default function NonRegisteredVisitorForm({ addressId, onVisitorCheckedIn
           first_name: firstName,
           last_name: lastName,
           entry_method: 'NAME_VERIFICATION',
-          notes: notes
+          notes: notes,
+          // Include unregistered address information
+          unregistered_address: address,  // Use the full address string
+          is_registered_address: false
         }),
       })
 
@@ -52,11 +66,20 @@ export default function NonRegisteredVisitorForm({ addressId, onVisitorCheckedIn
     }
   }
 
+  // Show the full address at the top of the form
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-4">
       {error && (
         <div className="bg-red-50 text-red-700 p-3 rounded">
           {error}
+        </div>
+      )}
+
+      {/* Display the full address */}
+      {address && (
+        <div className="bg-orange-50 border border-orange-200 rounded p-3">
+          <div className="text-sm font-medium text-orange-800">Selected Address:</div>
+          <div className="text-gray-700">{address}</div>
         </div>
       )}
       
@@ -105,9 +128,9 @@ export default function NonRegisteredVisitorForm({ addressId, onVisitorCheckedIn
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !address}
           className={`px-4 py-2 rounded text-white ${
-            isSubmitting
+            isSubmitting || !address
               ? 'bg-gray-400 cursor-not-allowed'
               : 'bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500'
           }`}
