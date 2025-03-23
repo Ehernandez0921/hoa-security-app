@@ -13,4 +13,17 @@
   - Can filter addresses by:
     - Status (ALL, PENDING, APPROVED, REJECTED)
     - Text search (filters by address, apartment number, owner name, member name, or member email in real-time)
-  - Batch actions available for selected addresses 
+  - Batch actions available for selected addresses
+  - Confirmation modal required for all status changes (approve/reject/revoke):
+    - In address list view:
+      - Shows address, member name
+      - Requires explicit confirmation before proceeding
+    - In address detail view:
+      - Shows comprehensive information including:
+        - Full address
+        - Apartment/Unit number (if applicable)
+        - Owner name
+        - Member name
+      - Color-coded action buttons (green for approve, red for reject)
+      - Requires explicit confirmation before proceeding
+      - Prevents accidental status changes 
