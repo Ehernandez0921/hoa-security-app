@@ -14,110 +14,121 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Forbidden - Requires SYSTEM_ADMIN role', { status: 403 });
     }
 
-    console.log('Starting seed data creation...');
-
-    // Get a security guard ID
-    const { data: guards, error: guardsError } = await supabase
+    // First, ensure we have a security guard
+    const { data: existingGuard, error: guardError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('*')
       .eq('role', 'SECURITY_GUARD')
-      .limit(1);
+      .single();
 
-    if (guardsError) {
-      console.error('Error finding security guard:', guardsError);
-      return new NextResponse('Error finding security guard', { status: 500 });
+    if (guardError && guardError.code !== 'PGRST116') {
+      console.error('Error checking for existing guard:', guardError);
+      return new NextResponse('Error checking for existing guard', { status: 500 });
     }
 
-    // If no guard exists, create one
-    let guardId;
-    if (!guards?.length) {
-      const { data: newGuard, error: newGuardError } = await supabase
+    let guardId = existingGuard?.id;
+
+    if (!guardId) {
+      // Create a test security guard
+      const { data: newGuard, error: createGuardError } = await supabase
         .from('profiles')
         .insert({
           name: 'Test Guard',
-          role: 'SECURITY_GUARD',
           email: 'testguard@example.com',
-          status: 'APPROVED'
+          role: 'SECURITY_GUARD'
         })
         .select()
         .single();
 
-      if (newGuardError) {
-        console.error('Error creating guard:', newGuardError);
-        return new NextResponse('Error creating guard', { status: 500 });
+      if (createGuardError) {
+        console.error('Error creating test guard:', createGuardError);
+        return new NextResponse('Error creating test guard', { status: 500 });
       }
+
       guardId = newGuard.id;
-    } else {
-      guardId = guards[0].id;
     }
 
-    console.log('Using guard ID:', guardId);
-
-    // Get or create a test address
-    const { data: addresses, error: addressesError } = await supabase
+    // Next, ensure we have a test address
+    const { data: existingAddress, error: addressError } = await supabase
       .from('member_addresses')
-      .select('id')
-      .limit(1);
+      .select('*')
+      .eq('address', '123 Test St')
+      .single();
 
-    let addressId;
-    if (!addresses?.length) {
-      const { data: newAddress, error: newAddressError } = await supabase
+    if (addressError && addressError.code !== 'PGRST116') {
+      console.error('Error checking for existing address:', addressError);
+      return new NextResponse('Error checking for existing address', { status: 500 });
+    }
+
+    let addressId = existingAddress?.id;
+
+    if (!addressId) {
+      // Create a test address
+      const { data: newAddress, error: createAddressError } = await supabase
         .from('member_addresses')
         .insert({
           address: '123 Test St',
+          apartment_number: '101',
           owner_name: 'Test Owner',
-          member_id: session.user.id,
-          status: 'APPROVED',
-          is_primary: true
+          is_verified: true
         })
         .select()
         .single();
 
-      if (newAddressError) {
-        console.error('Error creating address:', newAddressError);
-        return new NextResponse('Error creating address', { status: 500 });
+      if (createAddressError) {
+        console.error('Error creating test address:', createAddressError);
+        return new NextResponse('Error creating test address', { status: 500 });
       }
+
       addressId = newAddress.id;
-    } else {
-      addressId = addresses[0].id;
     }
 
-    console.log('Using address ID:', addressId);
+    // Create two test check-ins
+    const checkInsToCreate = [
+      {
+        first_name: 'John',
+        last_name: 'Doe',
+        check_in_time: new Date().toISOString(),
+        entry_method: 'WALK_IN',
+        notes: 'Test check-in 1',
+        is_registered_address: true,
+        checked_in_by: guardId,
+        address_id: addressId
+      },
+      {
+        first_name: 'Jane',
+        last_name: 'Smith',
+        check_in_time: new Date().toISOString(),
+        entry_method: 'WALK_IN',
+        notes: 'Test check-in 2',
+        is_registered_address: false,
+        checked_in_by: guardId,
+        unregistered_address: '456 Test Ave'
+      }
+    ];
 
-    // Insert test check-ins
-    const { error: checkInsError } = await supabase
+    const { data: newCheckIns, error: checkInsError } = await supabase
       .from('visitor_check_ins')
-      .insert([
-        {
-          first_name: 'John',
-          last_name: 'Doe',
-          checked_in_by: guardId,
-          check_in_time: new Date().toISOString(),
-          entry_method: 'NAME_VERIFICATION',
-          notes: 'Test check-in 1',
-          address_id: addressId,
-          is_registered_address: true
-        },
-        {
-          first_name: 'Jane',
-          last_name: 'Smith',
-          checked_in_by: guardId,
-          check_in_time: new Date().toISOString(),
-          entry_method: 'NAME_VERIFICATION',
-          notes: 'Test check-in 2',
-          unregistered_address: '456 Oak St',
-          is_registered_address: false
-        }
-      ]);
+      .insert(checkInsToCreate)
+      .select();
 
     if (checkInsError) {
-      console.error('Error inserting check-ins:', checkInsError);
-      return new NextResponse('Error creating test data: ' + checkInsError.message, { status: 500 });
+      console.error('Error creating test check-ins:', checkInsError);
+      return new NextResponse('Error creating test check-ins', { status: 500 });
     }
 
-    return new NextResponse('Test data created successfully', { status: 200 });
+    return new NextResponse(JSON.stringify({
+      message: 'Test data created successfully',
+      checkIns: newCheckIns
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
   } catch (error) {
-    console.error('Error in seed endpoint:', error);
+    console.error('Error seeding data:', error);
     return new NextResponse(
       error instanceof Error ? error.message : 'Internal server error',
       { status: 500 }

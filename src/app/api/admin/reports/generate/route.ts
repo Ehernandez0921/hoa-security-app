@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import ExcelJS from 'exceljs';
 
 export async function GET(request: NextRequest) {
@@ -13,6 +13,11 @@ export async function GET(request: NextRequest) {
     }
     if (session.user?.role !== 'SYSTEM_ADMIN') {
       return new NextResponse('Forbidden - Requires SYSTEM_ADMIN role', { status: 403 });
+    }
+
+    // Ensure we have admin client
+    if (!supabaseAdmin) {
+      return new NextResponse('Admin client not available', { status: 500 });
     }
 
     // Get query parameters
@@ -69,7 +74,8 @@ export async function GET(request: NextRequest) {
         console.log('Date range:', { fromDate: fromDate.toISOString(), toDate: toDate.toISOString() });
         
         // First get all check-ins without date filter to see if we have any data
-        const { data: allCheckIns, error: allCheckInsError } = await supabase
+        console.log('Attempting to fetch all check-ins...');
+        const { data: allCheckIns, error: allCheckInsError } = await supabaseAdmin
           .from('visitor_check_ins')
           .select(`
             id,
@@ -89,18 +95,26 @@ export async function GET(request: NextRequest) {
 
         if (allCheckInsError) {
           console.error('Error fetching all check-ins:', allCheckInsError);
+          console.error('Error details:', {
+            message: allCheckInsError.message,
+            details: allCheckInsError.details,
+            hint: allCheckInsError.hint
+          });
           return new NextResponse('Error fetching check-in data', { status: 500 });
         }
 
         console.log('Total check-ins in database:', allCheckIns?.length || 0);
         if (allCheckIns?.length) {
           console.log('Sample check-in:', JSON.stringify(allCheckIns[0], null, 2));
+        } else {
+          console.log('No check-ins found in the database at all');
         }
 
         // Now get check-ins within date range
+        console.log('Attempting to fetch check-ins within date range...');
         console.log('Date range:', { fromDate: fromDate.toISOString(), toDate: toDate.toISOString() });
         
-        const { data: checkIns, error: checkInsError } = await supabase
+        const { data: checkIns, error: checkInsError } = await supabaseAdmin
           .from('visitor_check_ins')
           .select(`
             id,
@@ -116,18 +130,25 @@ export async function GET(request: NextRequest) {
             address_id,
             unregistered_address
           `)
-          .gte('created_at', fromDate.toISOString())
-          .lte('created_at', toDate.toISOString())
-          .order('created_at', { ascending: false });
+          .gte('check_in_time', fromDate.toISOString())
+          .lte('check_in_time', toDate.toISOString())
+          .order('check_in_time', { ascending: false });
 
         if (checkInsError) {
-          console.error('Error fetching check-ins:', checkInsError);
+          console.error('Error fetching filtered check-ins:', checkInsError);
+          console.error('Error details:', {
+            message: checkInsError.message,
+            details: checkInsError.details,
+            hint: checkInsError.hint
+          });
           return new NextResponse('Error fetching check-in data', { status: 500 });
         }
 
-        console.log('Check-ins found:', checkIns?.length ?? 0);
+        console.log('Check-ins found within date range:', checkIns?.length ?? 0);
         if (checkIns && checkIns.length > 0) {
-          console.log('Sample check-in:', checkIns[0]);
+          console.log('Sample check-in from date range:', JSON.stringify(checkIns[0], null, 2));
+        } else {
+          console.log('No check-ins found within the specified date range');
         }
 
         if (!checkIns?.length) {
@@ -142,7 +163,7 @@ export async function GET(request: NextRequest) {
         console.log('Unique guard IDs:', guardIds);
         
         // Get guard profiles
-        const { data: guardProfiles, error: guardsError } = await supabase
+        const { data: guardProfiles, error: guardsError } = await supabaseAdmin
           .from('profiles')
           .select('id, name')
           .in('id', guardIds);
@@ -161,7 +182,7 @@ export async function GET(request: NextRequest) {
         // Get address details if there are any registered addresses
         let addresses: { id: string; address: string; apartment_number: string | null }[] = [];
         if (addressIds.length > 0) {
-          const { data: addressData, error: addressesError } = await supabase
+          const { data: addressData, error: addressesError } = await supabaseAdmin
             .from('member_addresses')
             .select('id, address, apartment_number')
             .in('id', addressIds);
