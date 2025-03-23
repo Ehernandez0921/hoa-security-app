@@ -1,0 +1,16 @@
+## System Administrator:
+- [SystemAdmin] should able to assign the role of [Security Guard]
+- [SystemAdmin] should be able to validate any new [Member] request and approve the generation of the new [Member] or reject the request to become a new [Member]
+- [SystemAdmin] should be able to approve or reject address submissions from members
+- [SystemAdmin] has access to the user management interface at /routes/admin/users to modify user roles and statuses
+  - Default view shows PENDING users
+  - Can filter users by:
+    - Role (ALL, MEMBER, SECURITY_GUARD, SYSTEM_ADMIN)
+    - Status (ALL, PENDING, APPROVED, REJECTED)
+    - Text search (filters by name or email in real-time)
+- [SystemAdmin] has access to the address management interface at /routes/admin/addresses to approve/reject member addresses
+  - Default view shows PENDING addresses
+  - Can filter addresses by:
+    - Status (ALL, PENDING, APPROVED, REJECTED)
+    - Text search (filters by address, apartment number, owner name, member name, or member email in real-time)
+  - Batch actions available for selected addresses 
