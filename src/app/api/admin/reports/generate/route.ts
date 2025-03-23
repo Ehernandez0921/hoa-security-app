@@ -228,14 +228,27 @@ export async function GET(request: NextRequest) {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Report');
         worksheet.columns = [
-          { header: 'Date', key: 'created_at' },
-          { header: 'Visitor Name', key: 'visitor_name' },
-          { header: 'Address', key: 'address' },
-          { header: 'Unit', key: 'unit' },
-          { header: 'Checked In By', key: 'guard_name' },
-          { header: 'Type', key: 'type' }
+          { header: 'Date', key: 'created_at', width: 20 },
+          { header: 'Visitor Name', key: 'visitor_name', width: 30 },
+          { header: 'Address', key: 'address', width: 40 },
+          { header: 'Unit', key: 'unit', width: 15 },
+          { header: 'Checked In By', key: 'guard_name', width: 30 },
+          { header: 'Type', key: 'type', width: 15 }
         ];
-        break;
+
+        // Add the data rows
+        worksheet.addRows(data);
+
+        // Generate file buffer
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        // Return file
+        return new NextResponse(buffer, {
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename=${report}-${new Date().toISOString()}.xlsx`
+          }
+        });
 
       case 'address-verification':
         const { data: addressData, error: addressError } = await supabase
