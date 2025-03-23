@@ -115,6 +115,7 @@ export default function AddressSearch({ onAddressSelect }: AddressSearchProps) {
             setError('')
             debouncedSearch(value)
           }}
+          onFocus={(e) => e.target.select()}
           placeholder="Start typing an address..."
           aria-label="Search for an address"
           autoComplete="off"

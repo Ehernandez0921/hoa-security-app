@@ -5,12 +5,20 @@ import { useState } from 'react'
 interface NonRegisteredVisitorFormProps {
   addressId: string | null;
   address?: string;  // Full address string from search
+  addressDetails?: {
+    houseNumber: string;
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
   onVisitorCheckedIn: () => void;
 }
 
 export default function NonRegisteredVisitorForm({ 
   addressId, 
   address,
+  addressDetails,
   onVisitorCheckedIn 
 }: NonRegisteredVisitorFormProps) {
   const [firstName, setFirstName] = useState('')
@@ -44,7 +52,16 @@ export default function NonRegisteredVisitorForm({
           notes: notes,
           // Include unregistered address information
           unregistered_address: address,  // Use the full address string
-          is_registered_address: false
+          is_registered_address: Boolean(addressId),
+          // Include address details if available
+          ...(addressDetails && {
+            street_number: addressDetails.houseNumber,
+            street_name: addressDetails.street,
+            city: addressDetails.city,
+            state: addressDetails.state,
+            postal_code: addressDetails.postalCode,
+            address_source: 'openstreetmap'
+          })
         }),
       })
 
