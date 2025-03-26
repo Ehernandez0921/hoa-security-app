@@ -36,9 +36,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // Generate password reset link
+    // Generate password reset link with explicit redirect URL
     const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/routes/reset-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/routes/reset-password?type=recovery`,
     });
 
     if (error) {

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function ResetPassword() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -13,15 +14,13 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // Check if we have a session
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/routes/login');
-      }
-    };
-    checkSession();
-  }, [router]);
+    // Check if this is a recovery flow
+    const type = searchParams?.get('type');
+    if (type !== 'recovery') {
+      console.error('Invalid reset password flow');
+      router.push('/routes/login');
+    }
+  }, [searchParams, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,13 +49,16 @@ export default function ResetPassword() {
       }
 
       setSuccess(true);
+      // Sign out the user to ensure clean state
+      await supabase.auth.signOut();
+      
       // Redirect to login page after 3 seconds
       setTimeout(() => {
         router.push('/routes/login');
       }, 3000);
     } catch (error) {
       console.error('Error resetting password:', error);
-      setError('Failed to reset password. Please try again.');
+      setError('Failed to reset password. Please try again or request a new reset link.');
     } finally {
       setIsLoading(false);
     }
@@ -69,6 +71,9 @@ export default function ResetPassword() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Reset your password
           </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Please enter your new password below
+          </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
