@@ -14,12 +14,27 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // Check if this is a recovery flow
-    const type = searchParams?.get('type');
-    if (type !== 'recovery') {
-      console.error('Invalid reset password flow');
-      router.push('/routes/login');
-    }
+    const checkRecoverySession = async () => {
+      try {
+        // Get the current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Check if this is a recovery flow
+        const type = searchParams?.get('type');
+        
+        // If no session and not a recovery flow, redirect to login
+        if (!session && type !== 'recovery') {
+          console.error('No valid session for password reset');
+          router.push('/routes/login');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking recovery session:', error);
+        router.push('/routes/login');
+      }
+    };
+
+    checkRecoverySession();
   }, [searchParams, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

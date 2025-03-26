@@ -36,9 +36,13 @@ export async function POST(request: Request) {
       });
     }
 
+    // Ensure the redirect URL is absolute and includes the recovery type
+    const redirectUrl = new URL('/routes/reset-password', process.env.NEXT_PUBLIC_APP_URL);
+    redirectUrl.searchParams.append('type', 'recovery');
+
     // Generate password reset link with explicit redirect URL
     const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/routes/reset-password?type=recovery`,
+      redirectTo: redirectUrl.toString(),
     });
 
     if (error) {
