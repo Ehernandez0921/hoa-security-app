@@ -23,7 +23,12 @@ export const authOptions: NextAuthOptions = {
       name: "Microsoft",
       type: "oauth",
       wellKnown: "https://login.microsoftonline.com/consumers/v2.0/.well-known/openid-configuration",
-      authorization: { params: { scope: "openid profile email" } },
+      authorization: { 
+        params: { 
+          scope: "openid profile email",
+          prompt: "select_account"  // Force account selector
+        } 
+      },
       clientId: process.env.AZURE_AD_CLIENT_ID,
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
       idToken: true,

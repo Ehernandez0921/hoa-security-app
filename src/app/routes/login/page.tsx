@@ -47,6 +47,29 @@ export default function Login() {
     )
   }
 
+  // Registration success message component
+  const RegistrationSuccessMessage = () => (
+    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+      <h3 className="text-lg font-semibold text-green-800 mb-2">Registration Successful!</h3>
+      <div className="text-sm text-green-700">
+        <p className="mb-2">Two steps are required before you can log in:</p>
+        <ol className="list-decimal ml-5 space-y-2">
+          <li>
+            <strong>Email Verification:</strong> Please check your email inbox (and spam folder) for a verification link.
+            Click the link to verify your email address.
+          </li>
+          <li>
+            <strong>Admin Approval:</strong> After verifying your email, an administrator will need to approve your account.
+            You will not be able to log in until your account is approved.
+          </li>
+        </ol>
+        <p className="mt-3 text-sm italic">
+          This process helps ensure the security of our community.
+        </p>
+      </div>
+    </div>
+  )
+
   // Only show login form for unauthenticated users
   if (status === 'unauthenticated') {
     const handleSubmit = async (e: React.FormEvent) => {
@@ -236,6 +259,16 @@ export default function Login() {
               Sign in to your account
             </h2>
           </div>
+          
+          {/* Show registration success message if user just registered */}
+          {isRegistered && <RegistrationSuccessMessage />}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+              {error}
+            </div>
+          )}
+
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
@@ -283,16 +316,6 @@ export default function Login() {
                 </button>
               </div>
             </div>
-
-            {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="flex">
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div>
               <button
