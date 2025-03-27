@@ -168,9 +168,10 @@ export default function Login() {
     // Function to resend verification email
     const handleResendVerification = async (e: React.MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       
       if (!formData.email) {
-        alert("Please enter your email address in the form first");
+        setError('Please enter your email address in the form first');
         return;
       }
       
@@ -190,12 +191,28 @@ export default function Login() {
         
         if (result.success) {
           setResendSuccess(true);
+          setError(
+            <div>
+              <p className="text-green-700 font-semibold">Verification email sent!</p>
+              <p className="mt-1">Please check your inbox (and spam folder) for the verification link.</p>
+            </div>
+          );
         } else {
-          alert(`Error: ${result.error || 'Failed to resend verification email'}`);
+          setError(
+            <div>
+              <p className="font-bold">Error sending verification email</p>
+              <p className="mt-1">{result.error || 'Failed to send verification email. Please try again.'}</p>
+            </div>
+          );
         }
       } catch (error) {
         console.error('Error resending verification email:', error);
-        alert('An unexpected error occurred. Please try again later.');
+        setError(
+          <div>
+            <p className="font-bold">Error sending verification email</p>
+            <p className="mt-1">An unexpected error occurred. Please try again later.</p>
+          </div>
+        );
       } finally {
         setResendingEmail(false);
       }
