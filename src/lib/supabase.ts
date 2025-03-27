@@ -88,36 +88,6 @@ export async function createUser(email: string, password: string, userData: {
     return { success: false, error: profileError };
   }
   
-  // 3. Try to automatically confirm the email via server API
-  // Note: This is optional - if it fails, user will still be registered
-  // and can confirm via email link
-  try {
-    console.log(`Attempting to automatically confirm email for user: ${authData.user.id}`);
-    
-    // Call our server API endpoint to confirm the email
-    const confirmResponse = await fetch('/api/auth/confirm-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId: authData.user.id }),
-    });
-    
-    const confirmResult = await confirmResponse.json();
-    
-    if (!confirmResponse.ok || !confirmResult.success) {
-      console.log('Note: Automatic email confirmation did not succeed. User will need to confirm via email link.');
-      console.error('Details:', confirmResult.error || 'Unknown error');
-      // Non-fatal - user will confirm via email
-    } else {
-      console.log('Email automatically confirmed for user');
-    }
-  } catch (error) {
-    console.log('Note: Unable to automatically confirm email. User will need to confirm via email link.');
-    console.error('Error during confirmation attempt:', error);
-    // Non-fatal - user will confirm via email
-  }
-  
   return { 
     success: true, 
     user: {
