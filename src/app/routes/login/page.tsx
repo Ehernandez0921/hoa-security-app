@@ -5,6 +5,13 @@ import { useState, useEffect, ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { LoginFormData } from '@/app/models/auth/Login'
 
+interface ResetResponse {
+  message: string;
+  exists: boolean;
+  isOAuth: boolean;
+  provider?: 'microsoft' | 'google';
+}
+
 export default function Login() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -19,8 +26,9 @@ export default function Login() {
   const [resendSuccess, setResendSuccess] = useState(false)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
-  const [resetStatus, setResetStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [resetStatus, setResetStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'oauth'>('idle')
   const [resetMessage, setResetMessage] = useState('')
+  const [resetData, setResetData] = useState<ResetResponse | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
 
   // Redirect authenticated users away from login page
@@ -176,16 +184,17 @@ export default function Login() {
     }
 
     const handleForgotPassword = async (e: React.FormEvent) => {
-      e.preventDefault()
-      setResetStatus('loading')
-      setResetMessage('')
-      setEmailError(null)
+      e.preventDefault();
+      setResetStatus('loading');
+      setResetMessage('');
+      setEmailError(null);
+      setResetData(null);
 
       // Validate email format
       if (!validateEmail(resetEmail)) {
-        setEmailError('Please enter a valid email address')
-        setResetStatus('idle')
-        return
+        setEmailError('Please enter a valid email address');
+        setResetStatus('idle');
+        return;
       }
 
       try {
@@ -195,26 +204,29 @@ export default function Login() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ email: resetEmail }),
-        })
+        });
 
-        const data = await response.json()
+        const data: ResetResponse = await response.json();
 
         if (response.ok) {
-          setResetStatus('success')
-          setResetMessage(data.message)
-          if (data.exists) {
-            setResetEmail('')
-            setTimeout(() => setShowForgotPassword(false), 3000)
+          setResetStatus(data.isOAuth ? 'oauth' : 'success');
+          setResetMessage(data.message);
+          setResetData(data);
+          
+          // Only clear email and close modal for non-OAuth users who will receive reset instructions
+          if (!data.isOAuth) {
+            setResetEmail('');
+            setTimeout(() => setShowForgotPassword(false), 3000);
           }
         } else {
-          setResetStatus('error')
-          setResetMessage(data.error || 'Failed to send reset instructions')
+          setResetStatus('error');
+          setResetMessage(data.message || 'Failed to send reset instructions');
         }
       } catch (error) {
-        setResetStatus('error')
-        setResetMessage('An error occurred while processing your request')
+        setResetStatus('error');
+        setResetMessage('An error occurred while processing your request');
       }
-    }
+    };
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -367,9 +379,23 @@ export default function Login() {
                   <div className={`mb-4 p-3 rounded ${
                     resetStatus === 'success' 
                       ? 'bg-green-50 text-green-700'
+                      : resetStatus === 'oauth'
+                      ? 'bg-blue-50 text-blue-700'
                       : 'bg-red-50 text-red-700'
                   }`}>
-                    {resetMessage}
+                    <p>{resetMessage}</p>
+                    {resetStatus === 'oauth' && resetData?.provider && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForgotPassword(false);
+                          signIn(resetData.provider);
+                        }}
+                        className="mt-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        Sign in with {resetData.provider.charAt(0).toUpperCase() + resetData.provider.slice(1)}
+                      </button>
+                    )}
                   </div>
                 )}
                 <div className="flex justify-end space-x-3">
