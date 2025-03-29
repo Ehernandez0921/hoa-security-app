@@ -2,15 +2,15 @@
 
 ```mermaid
 erDiagram
-    auth.users ||--o{ profiles : "has"
-    profiles ||--o{ member_addresses : "owns"
-    member_addresses ||--o{ allowed_visitors : "has"
-    profiles ||--o{ visitor_check_ins : "logs"
-    allowed_visitors ||--o{ visitor_check_ins : "records"
-    member_addresses ||--o{ visitor_check_ins : "tracks"
-    auth_mappings ||--|| profiles : "maps"
+    "auth.users" ||--o{ profiles : has
+    profiles ||--o{ member_addresses : owns
+    member_addresses ||--o{ allowed_visitors : has
+    profiles ||--o{ visitor_check_ins : logs
+    allowed_visitors ||--o{ visitor_check_ins : records
+    member_addresses ||--o{ visitor_check_ins : tracks
+    auth_mappings ||--|| profiles : maps
 
-    auth.users {
+    "auth.users" {
         uuid id PK
         text email
         text encrypted_password
@@ -64,7 +64,7 @@ erDiagram
         uuid address_id FK
         uuid checked_in_by FK
         timestamp check_in_time
-        entry_method_type entry_method
+        text entry_method
         text notes
         text first_name
         text last_name

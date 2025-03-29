@@ -77,9 +77,10 @@ export default function Login() {
       setError('') // Clear previous errors
       
       try {
-        console.log(`Attempting to sign in with email: ${formData.email}`)
+        const normalizedEmail = formData.email.toLowerCase();
+        console.log(`Attempting to sign in with email: ${normalizedEmail}`)
         const result = await signIn('credentials', {
-          email: formData.email,
+          email: normalizedEmail,
           password: formData.password,
           redirect: false,
         })
@@ -184,7 +185,7 @@ export default function Login() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email: formData.email }),
+          body: JSON.stringify({ email: formData.email.toLowerCase() }),
         });
         
         const result = await response.json();

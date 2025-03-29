@@ -15,20 +15,24 @@ export default function MemberDashboard() {
   // Fetch user profile to get current status
   useEffect(() => {
     async function fetchUserProfile() {
-      if (status === 'authenticated' && session?.user?.id) {
+      if (status === 'authenticated' && session?.user?.email) {
+        const userEmail = session.user.email.toLowerCase();
+        console.log('Fetching profile for email:', userEmail);
         try {
-          // Use the user ID from the session to get profile data
+          // Use the user's email to get profile data with case-insensitive comparison
           const { data, error } = await supabase
             .from('profiles')
             .select('status')
-            .eq('id', session.user.id)
+            .ilike('email', userEmail)
             .single();
 
           if (error) {
             console.error('Error fetching profile:', error);
           } else if (data) {
-            console.log('User profile status:', data.status);
+            console.log('Profile data received:', data);
             setAccountStatus(data.status);
+          } else {
+            console.log('No profile data found');
           }
         } catch (error) {
           console.error('Unexpected error fetching profile:', error);
@@ -36,6 +40,7 @@ export default function MemberDashboard() {
           setLoading(false);
         }
       } else if (status !== 'loading') {
+        console.log('Not authenticated or no email:', { status, email: session?.user?.email });
         setLoading(false);
       }
     }

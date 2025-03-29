@@ -68,9 +68,12 @@ export default function Register() {
       setLoading(true)
       
       try {
+        // Normalize email to lowercase
+        const normalizedEmail = formData.email.toLowerCase();
+        
         // Call our dataAccess layer to create the user with Supabase
         const result = await createUser(
-          formData.email,
+          normalizedEmail,
           formData.password,
           {
             name: formData.name
