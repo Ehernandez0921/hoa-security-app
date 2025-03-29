@@ -239,12 +239,15 @@ export default function Login() {
       }
 
       try {
+        // Normalize email to lowercase
+        const normalizedEmail = resetEmail.toLowerCase();
+        
         const response = await fetch('/api/auth/forgot-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email: resetEmail }),
+          body: JSON.stringify({ email: normalizedEmail }),
         });
 
         const data: ResetResponse = await response.json();
